@@ -1,0 +1,11 @@
+websockets~=15.0.1
+numpy~=2.2.3
+modelscope~=1.23.2
+pyaudio~=0.2.14
+funasr~=1.2.6
+addict~=2.4.0
+datasets~=3.3.2
+Pillow~=11.1.0
+simplejson~=3.20.1
+sortedcontainers~=2.4.0
+silero-vad~=5.1.2

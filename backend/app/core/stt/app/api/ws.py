@@ -1,0 +1,356 @@
+"""
+WebSocket API路由
+"""
+
+import logging
+import json
+import base64
+import asyncio
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+
+from app.core.security import verify_api_key
+from app.services.asr_service import get_asr_service
+from app.services.vpr_service import get_vpr_service
+
+from app.services.llm_service import get_llm_service
+from app.core.config import get_settings
+
+# 配置日志
+logger = logging.getLogger("ws_api")
+
+# 创建路由
+router = APIRouter(tags=["WebSocket"])
+
+
+class ConnectionManager:
+    """WebSocket连接管理器"""
+    
+    def __init__(self):
+        """初始化连接管理器"""
+        self.active_connections: List[WebSocket] = []
+        
+    async def connect(self, websocket: WebSocket):
+        """建立WebSocket连接
+        
+        Args:
+            websocket: WebSocket连接
+        """
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"WebSocket连接建立，当前连接数: {len(self.active_connections)}")
+        
+    def disconnect(self, websocket: WebSocket):
+        """断开WebSocket连接
+        
+        Args:
+            websocket: WebSocket连接
+        """
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            logger.info(f"WebSocket连接断开，当前连接数: {len(self.active_connections)}")
+            
+    async def send_json(self, websocket: WebSocket, data: Dict[str, Any]):
+        """发送JSON数据
+        
+        Args:
+            websocket: WebSocket连接
+            data: 要发送的数据
+        """
+        try:
+            await websocket.send_json(data)
+        except Exception as e:
+            logger.error(f"发送WebSocket消息失败: {e}")
+            # 移除失效的连接
+            self.disconnect(websocket)
+
+
+# 创建连接管理器实例
+manager = ConnectionManager()
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket接口，支持实时语音识别和声纹识别
+    """
+    try:
+        # 建立连接 - 只调用一次accept()
+        await manager.connect(websocket)
+        logger.info("WebSocket连接已建立")
+        
+        # 获取服务实例
+        asr_service = get_asr_service()
+        vpr_service = get_vpr_service()
+        llm_service = get_llm_service()
+        
+        # 记录会话状态
+        # 读取全局配置的llm.tts作为默认值
+        settings = get_settings()
+        llm_config = settings.get("llm", {})
+        session_state = {
+            "audio_frames": [],
+            "check_voiceprint": True,
+            "only_register_user": False,
+            "identify_unregistered": True,
+            "user_token": "",  # 添加用户token字段
+            "llm_api_url": "",  # 添加LLM API URL字段
+            "llm_tts": llm_config.get("tts", False)  # 默认用配置文件
+        }
+        
+        # 发送连接成功消息
+        await manager.send_json(websocket, {
+            "success": True,
+            "message": "WebSocket连接已建立",
+            "config": session_state
+        })
+        
+        while True:
+            # 接收消息
+            data = await websocket.receive_text()
+            
+            try:
+                # 解析JSON消息
+                message = json.loads(data)
+                action = message.get("action", "")
+                
+                # 根据动作类型处理
+                if action == "config":
+                    # 更新配置
+                    config_data = message.get("data", {})
+                    old_token = session_state.get("user_token", "")
+                    session_state.update({
+                        "check_voiceprint": config_data.get("check_voiceprint", session_state["check_voiceprint"]),
+                        "only_register_user": config_data.get("only_register_user", session_state["only_register_user"]),
+                        "identify_unregistered": config_data.get("identify_unregistered", session_state["identify_unregistered"]),
+                        "user_token": config_data.get("user_token", session_state["user_token"]),  # 更新用户token
+                        "llm_api_url": config_data.get("llm_api_url", session_state["llm_api_url"]),  # 更新LLM API URL
+                        "llm_tts": config_data.get("llm_tts", session_state.get("llm_tts", True))  # 新增tts参数
+                    })
+                    
+                    # 如果提供了LLM API URL，更新LLM服务配置
+                    if session_state["llm_api_url"]:
+                        llm_service.api_url = session_state["llm_api_url"]
+                        logger.info(f"更新LLM API URL为: {session_state['llm_api_url']}")
+                    
+                    new_token = session_state.get("user_token", "")
+                    logger.info(f"配置更新: 旧token长度: {len(old_token)}, 新token长度: {len(new_token)}")
+                    
+                    await manager.send_json(websocket, {
+                        "success": True,
+                        "message": "配置已更新",
+                        "config": session_state
+                    })
+                elif action == "audio":
+                    # 处理音频数据
+                    audio_data_base64 = message.get("data", {}).get("audio_data", "")
+                    audio_format = message.get("data", {}).get("format", "pcm")  # 获取音频格式，默认为pcm
+                    
+                    if not audio_data_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "未接收到音频数据"
+                        })
+                        continue
+                      # 解码音频数据
+                    audio_data = base64.b64decode(audio_data_base64)
+                    
+                    # 记录音频格式
+                    logger.info(f"接收到音频数据，格式: {audio_format}，大小: {len(audio_data)} 字节")
+                      # 如果需要检查声纹
+                    user_info = {}
+                    if session_state["check_voiceprint"]:
+                        # 识别声纹
+                        vpr_result = vpr_service.identify_voiceprint(audio_data)
+                        
+                        if vpr_result["success"]:
+                            user_info = {
+                                "user_id": vpr_result["user_id"],
+                                "user_name": vpr_result["user_name"],
+                                "similarity": vpr_result["similarity"]
+                            }
+                        elif session_state["only_register_user"]:
+                            # 如果只识别已注册用户且声纹识别失败，则返回错误
+                            await manager.send_json(websocket, {
+                                "success": False,
+                                "error": "未识别到已注册用户的声纹"
+                            })
+                            continue
+                      # 执行语音识别 - 传入音频格式
+                    asr_result = asr_service.recognize(audio_data, audio_format=audio_format)
+                    
+                    if asr_result["success"]:
+                        # 包含语音检测结果（如果有）
+                        speech_detection = {}
+                        if "speech_detection" in asr_result:
+                            speech_detection = {"speech_detection": asr_result["speech_detection"]}
+                        
+                        # 获取识别到的文本
+                        recognized_text = asr_result["text"]
+                        
+                        # 添加调试日志
+                        user_token = session_state.get("user_token", "")
+                        logger.info(f"识别结果: '{recognized_text}', 用户token: '{user_token}', token长度: {len(user_token)}")
+                        
+                        # 如果有文本内容且配置了用户token，则发送给LLM
+                        llm_response = None
+                        if recognized_text.strip() and user_token.strip():
+                            try:
+                                logger.info(f"准备调用LLM，文本: '{recognized_text}', token: '{user_token[:20]}...'")
+                                llm_response = await llm_service.send_to_llm(
+                                    recognized_text,
+                                    user_token,
+                                    tts=session_state.get("llm_tts", False)
+                                )
+                                logger.info(f"LLM调用成功，响应: {llm_response}")
+                            except Exception as e:
+                                logger.error(f"LLM调用失败: {e}")
+                        else:
+                            logger.info(f"跳过LLM调用 - 文本为空: {not recognized_text.strip()}, token为空: {not user_token.strip()}")
+                        
+                        # 返回识别结果
+                        response_data = {
+                            "success": True,
+                            "text": recognized_text,
+                            **user_info,
+                            **speech_detection  # 添加语音检测信息
+                        }
+                        
+                        # 如果有LLM响应，也包含在结果中
+                        if llm_response:
+                            response_data["llm_response"] = llm_response
+                        
+                        await manager.send_json(websocket, response_data)
+                    else:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": asr_result["error"]
+                        })
+                        
+                elif action == "register_voiceprint":
+                    # 注册声纹
+                    reg_data = message.get("data", {})
+                    user_id = reg_data.get("user_id", "")
+                    user_name = reg_data.get("user_name", "")
+                    audio_data_base64 = reg_data.get("audio_data", "")
+                    
+                    if not user_id or not audio_data_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "缺少用户ID或音频数据"
+                        })
+                        continue
+                    
+                    # 解码音频数据
+                    audio_data = base64.b64decode(audio_data_base64)
+                    
+                    # 注册声纹
+                    result = vpr_service.register_voiceprint(user_id, user_name or "未命名用户", audio_data)
+                    
+                    # 返回结果
+                    await manager.send_json(websocket, result)
+                    
+                elif action == "identify_voiceprint":
+                    # 识别声纹
+                    audio_data_base64 = message.get("data", {}).get("audio_data", "")
+                    
+                    if not audio_data_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "未接收到音频数据"
+                        })
+                        continue
+                    
+                    # 解码音频数据
+                    audio_data = base64.b64decode(audio_data_base64)
+                    
+                    # 识别声纹
+                    result = vpr_service.identify_voiceprint(audio_data)
+                    
+                    # 返回结果
+                    await manager.send_json(websocket, result)
+                    
+                elif action == "list_voiceprints":
+                    # 获取声纹列表
+                    result = vpr_service.list_voiceprints()
+                    
+                    # 返回结果
+                    await manager.send_json(websocket, result)
+                    
+                elif action == "remove_voiceprint":
+                    # 删除声纹
+                    user_id = message.get("data", {}).get("user_id", "")
+                    
+                    if not user_id:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "缺少用户ID"
+                        })
+                        continue
+                    
+                    # 删除声纹
+                    result = vpr_service.remove_voiceprint(user_id)
+                    
+                    # 返回结果
+                    await manager.send_json(websocket, result)
+                    
+                elif action == "compare_voiceprints":
+                    # 比对声纹
+                    compare_data = message.get("data", {})
+                    audio_data1_base64 = compare_data.get("audio_data1", "")
+                    audio_data2_base64 = compare_data.get("audio_data2", "")
+                    
+                    if not audio_data1_base64 or not audio_data2_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "缺少音频数据"
+                        })
+                        continue
+                    
+                    # 解码音频数据
+                    audio_data1 = base64.b64decode(audio_data1_base64)
+                    audio_data2 = base64.b64decode(audio_data2_base64)
+                    
+                    # 比对声纹
+                    result = vpr_service.compare_voiceprints(audio_data1, audio_data2)
+                    
+                    # 返回结果
+                    await manager.send_json(websocket, result)
+                    
+                elif action == "ping":
+                    # 心跳检测
+                    await manager.send_json(websocket, {
+                        "success": True,
+                        "action": "pong",
+                        "timestamp": message.get("data", {}).get("timestamp", 0)
+                    })
+                    
+                else:
+                    # 未知动作
+                    await manager.send_json(websocket, {
+                        "success": False,
+                        "error": f"未知动作: {action}"
+                    })
+                    
+            except json.JSONDecodeError:
+                await manager.send_json(websocket, {
+                    "success": False,
+                    "error": "无效的JSON消息"
+                })
+                
+            except Exception as e:
+                logger.error(f"处理WebSocket消息异常: {str(e)}", exc_info=True)
+                await manager.send_json(websocket, {
+                    "success": False,
+                    "error": f"服务器内部错误: {str(e)}"
+                })
+                
+    except WebSocketDisconnect:
+        # 断开连接
+        manager.disconnect(websocket)
+        logger.info("WebSocket连接已断开")
+        
+    except Exception as e:
+        # 捕获其他异常
+        logger.error(f"WebSocket连接异常: {str(e)}", exc_info=True)
+        manager.disconnect(websocket)

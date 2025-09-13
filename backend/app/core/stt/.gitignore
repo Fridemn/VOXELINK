@@ -1,0 +1,8 @@
+/__pycache__
+/database
+/SenseVoiceSmall
+/test
+/.vscode
+/config.json
+/model_cache
+*.pyc
