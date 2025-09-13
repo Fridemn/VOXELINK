@@ -1,3 +1,6 @@
 .vscode
 
 backend/db.*
+db.*
+
+logs

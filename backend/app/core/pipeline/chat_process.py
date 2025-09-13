@@ -53,7 +53,6 @@ class ChatProcess:
         tts: bool,
         audio_file: Optional[UploadFile],
         user_id: Optional[str],
-        user_token: Optional[str] = None,  # 添加user_token
     ) -> Union[StreamingResponse, Response, Dict[str, Any]]:
         """
         处理统一聊天请求
@@ -98,7 +97,7 @@ class ChatProcess:
             # 根据流式处理需求选择处理方式
             if stream:
                 return await self._handle_stream_response(
-                    model, input_message, history_id, user_id, stt, tts, transcribed_text, user_token
+                    model, input_message, history_id, user_id, stt, tts, transcribed_text
                 )
             else:
                 return await self._handle_normal_response(model, input_message, history_id, user_id, tts)
@@ -159,7 +158,6 @@ class ChatProcess:
         stt: bool,
         tts: bool,
         transcribed_text: Optional[str],
-        user_token: Optional[str],  # 添加user_token
     ) -> StreamingResponse:
         """
         处理流式响应
@@ -178,20 +176,15 @@ class ChatProcess:
                     if text_chunk is None:
                         logger.info("TTS处理任务收到停止信号，正常退出。")
                         break
-                    if user_token:
-                        logger.info(f"发送文本块到TTS服务: '{text_chunk}'")
-                        await text_to_speech_stream(text_chunk, user_token)
-                    else:
-                        logger.warning("用户token为空，跳过TTS调用。")
+                    logger.info(f"发送文本块到TTS服务: '{text_chunk}'")
+                    await text_to_speech_stream(text_chunk)
                     queue.task_done()
 
             tts_queue = asyncio.Queue()
             tts_task = None
-            if tts and user_token:
+            if tts:
                 logger.info("创建TTS处理任务。")
                 tts_task = asyncio.create_task(process_tts_queue(tts_queue))
-            elif tts:
-                logger.warning("TTS已启用但缺少用户token，将不创建TTS任务。")
 
             try:
                 count = 0
@@ -229,7 +222,7 @@ class ChatProcess:
                         # 将普通文本块包装为SSE格式
                         response_text = f"data: {json.dumps({'text': chunk})}\n\n"
                         yield response_text
-                        if tts and user_token:
+                        if tts:
                             text_buffer += chunk
                             parts = sentence_delimiters.split(text_buffer)
                             
@@ -252,7 +245,7 @@ class ChatProcess:
                     yield f"data: {json.dumps({'text': '未能生成响应'})}\n\n"
 
                 # 处理缓冲区中剩余的文本
-                if tts and user_token and text_buffer.strip():
+                if tts and text_buffer.strip():
                     logger.debug(f"将缓冲区剩余文本放入TTS队列: '{text_buffer.strip()}'")
                     await tts_queue.put(text_buffer.strip())
 

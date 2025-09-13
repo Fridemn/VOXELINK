@@ -66,9 +66,7 @@ async def unified_chat(
         user_id = "anonymous"
         history_id = await db_message_history.get_user_history_id(user_id)
 
-        user_token = None
-        if tts:
-            logger.warning("TTS已启用但用户认证已移除，TTS将不会被调用")
+        # TTS功能已启用，无需token校验
         
         # 检查是否是函数调用命令
         if message:
@@ -114,7 +112,6 @@ async def unified_chat(
             tts=tts,
             audio_file=None,
             user_id=user_id,
-            user_token=user_token,  # 传递token
         )
 
     except HTTPException:

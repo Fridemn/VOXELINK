@@ -40,16 +40,8 @@ class DBMessageHistory:
             raise HTTPException(status_code=500, detail="数据库连接未初始化")
 
         try:
-            user_uuid = None
-            if user_id and user_id.strip():
-                try:
-                    user_uuid = uuid.UUID(user_id)
-                except ValueError:
-                    logger.warning(f"无效的用户ID格式: {user_id}")
-                    return await self.create_history(None)
-
-            # 查找用户的历史记录
-            history = await ChatHistory.filter(user_id=user_uuid).first()
+            # 简化逻辑：直接获取或创建默认的历史记录
+            history = await ChatHistory.first()
 
             # 如果不存在，创建一个新的
             if not history:
@@ -68,19 +60,13 @@ class DBMessageHistory:
             raise HTTPException(status_code=500, detail="数据库连接未初始化")
 
         try:
-            user_uuid = None
-            if user_id and user_id.strip():
-                try:
-                    user_uuid = uuid.UUID(user_id)
-                    # 检查用户是否已有历史记录
-                    existing_history = await ChatHistory.filter(user_id=user_uuid).first()
-                    if existing_history:
-                        return str(existing_history.history_id)
-                except ValueError:
-                    logger.warning(f"无效的用户ID格式: {user_id}")
+            # 检查是否已有历史记录
+            existing_history = await ChatHistory.first()
+            if existing_history:
+                return str(existing_history.history_id)
 
             # 创建新的历史记录
-            history = await ChatHistory.create(user_id=user_uuid, title=title)
+            history = await ChatHistory.create(title=title)
             return str(history.history_id)
         except Exception as e:
             logger.error(f"创建历史记录失败: {e}")

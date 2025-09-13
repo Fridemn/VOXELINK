@@ -8,13 +8,12 @@ from app import app_config
 TTS_BASE_URL = app_config.get("tts_config", {}).get("base_url")
 
 
-async def text_to_speech_stream(text_chunk: str, user_token: str, character: str = "march7", mood: str = "normal"):
+async def text_to_speech_stream(text_chunk: str, character: str = "march7", mood: str = "normal"):
     """
     异步调用TTS服务进行语音合成，并处理流式响应。
 
     Args:
         text_chunk (str): 需要合成的文本块。
-        user_token (str): 用于WebSocket推送的用户token。
         character (str): 角色名称。
         mood (str): 情绪。
     """
@@ -29,7 +28,6 @@ async def text_to_speech_stream(text_chunk: str, user_token: str, character: str
         "mood": mood,
         "text_language": "chinese",
         "how_to_cut": "no_cut",
-        "token": user_token,
     }
 
     try:
@@ -52,9 +50,8 @@ async def text_to_speech_stream(text_chunk: str, user_token: str, character: str
 # 示例用法
 async def main():
     """测试TTS服务调用的示例函数"""
-    test_token = "your_test_token"  # 替换为有效的测试token
     test_text = "你好，这是一个测试。"
-    await text_to_speech_stream(test_text, test_token)
+    await text_to_speech_stream(test_text)
 
 
 if __name__ == "__main__":
