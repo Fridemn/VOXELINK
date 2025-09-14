@@ -32,9 +32,9 @@ import uvicorn
 from router import router, set_config
 
 # 导入我们的核心推理模块
-gsvi_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(gsvi_dir))))
-sys.path.append(gsvi_dir)
+tts_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(tts_dir))))
+sys.path.append(tts_dir)
 sys.path.append(os.path.join(project_root, "GPT_SoVITS"))
 from core_inference import (
     get_tts_wav,

@@ -43,10 +43,10 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Import necessary components from GPT_SoVITS
 # Use the directory of this file to find the project root
-gsvi_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(gsvi_dir))))
+tts_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(tts_dir))))
 
-sys.path.append(gsvi_dir)
+sys.path.append(tts_dir)
 sys.path.append(os.path.join(project_root, "GPT_SoVITS"))
 
 # Set up paths

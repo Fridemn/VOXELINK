@@ -6,7 +6,7 @@
         <label for="provider" class="text-gray-700">TTS提供者:</label>
         <select id="provider" :value="provider" @change="$emit('update:provider', $event.target.value)"
                 class="flex-1">
-          <option value="gsvi">GSVI</option>
+          <option value="tts">GSVI</option>
           <option value="azure">Azure</option>
           <option value="elevenlabs">ElevenLabs</option>
         </select>
@@ -38,7 +38,7 @@ export default {
   props: {
     provider: {
       type: String,
-      default: 'gsvi'
+      default: 'tts'
     },
     apiBase: {
       type: String,

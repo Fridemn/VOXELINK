@@ -92,25 +92,25 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
     if enable_tts:
         try:
             # 添加GSVI路径到sys.path
-            gsvi_path = os.path.join(os.path.dirname(__file__), "app", "core", "gsvi")
-            if gsvi_path not in sys.path:
-                sys.path.insert(0, gsvi_path)
+            tts_path = os.path.join(os.path.dirname(__file__), "app", "core", "tts")
+            if tts_path not in sys.path:
+                sys.path.insert(0, tts_path)
             
             # 临时修改当前工作目录，以便相对导入正常工作
             original_cwd = os.getcwd()
-            os.chdir(gsvi_path)
+            os.chdir(tts_path)
             
             try:
                 # 动态导入TTS路由模块
                 import importlib.util
-                spec = importlib.util.spec_from_file_location("router", os.path.join(gsvi_path, "router.py"))
+                spec = importlib.util.spec_from_file_location("router", os.path.join(tts_path, "router.py"))
                 router_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(router_module)
                 
                 # 加载GSVI配置
-                def load_gsvi_config():
+                def load_tts_config():
                     """加载GSVI配置文件"""
-                    config_path = os.path.join(gsvi_path, "config.json")
+                    config_path = os.path.join(tts_path, "config.json")
                     default_config = {
                         "default_models": {
                             "sovits_path": "SoVITS_weights_v4/March7_e10_s4750_l32.pth",
@@ -157,15 +157,15 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                             logger.warning(f"无法创建GSVI配置文件: {e}")
                         return default_config
                 
-                gsvi_config = load_gsvi_config()
+                tts_config = load_tts_config()
                 
                 # 设置路由模块的配置
-                router_module.set_config(gsvi_config)
+                router_module.set_config(tts_config)
                 
                 # 设置TTS服务的配置
                 try:
                     from app.core.tts.tts_service import set_tts_config
-                    set_tts_config(gsvi_config)
+                    set_tts_config(tts_config)
                 except ImportError as e:
                     logger.warning(f"无法设置TTS服务配置: {e}")
                 

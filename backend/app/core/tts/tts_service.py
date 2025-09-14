@@ -9,9 +9,9 @@ from loguru import logger
 from app import app_config
 
 # 添加GSVI路径到sys.path
-gsvi_path = Path(__file__).parent.parent / "gsvi"
-if str(gsvi_path) not in sys.path:
-    sys.path.insert(0, str(gsvi_path))
+tts_path = Path(__file__).parent.parent / "tts"
+if str(tts_path) not in sys.path:
+    sys.path.insert(0, str(tts_path))
 
 # 导入GSVI核心推理模块
 try:

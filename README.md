@@ -29,7 +29,7 @@ cd app/core/stt
 pip install -r requirements.txt
 
 # 安装TTS模块依赖 (可选)
-cd app/core/gsvi
+cd app/core/tts
 pip install -r requirements.txt
 ```
 
@@ -127,7 +127,7 @@ TTS_MODEL_PATH=/path/to/tts/model
 
 - `backend/app/config/` - 应用配置
 - `backend/app/core/stt/config.json` - STT配置
-- `backend/app/core/gsvi/config.json` - TTS配置
+- `backend/app/core/tts/config.json` - TTS配置
 
 ## 开发
 
@@ -141,7 +141,7 @@ VOXELINK/
 │   │   ├── api/            # API路由
 │   │   ├── core/           # 核心模块
 │   │   │   ├── stt/        # 语音识别模块
-│   │   │   └── gsvi/       # 语音合成模块
+│   │   │   └── tts/       # 语音合成模块
 │   │   ├── models/         # 数据模型
 │   │   └── config/         # 配置
 │   └── static/             # 静态文件
