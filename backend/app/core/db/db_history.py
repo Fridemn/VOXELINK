@@ -372,8 +372,8 @@ class DBMessageHistory:
         await self._ensure_connection()
 
         try:
-            # 获取用户的历史记录
-            history = await ChatHistory.filter(user_id=user_id).first()
+            # 获取用户的历史记录（由于模型设计，每个用户只有一条历史记录）
+            history = await ChatHistory.first()
 
             if not history:
                 # 如果不存在，创建一个新的
