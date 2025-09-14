@@ -162,6 +162,13 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                 # 设置路由模块的配置
                 router_module.set_config(gsvi_config)
                 
+                # 设置TTS服务的配置
+                try:
+                    from app.core.tts.tts_service import set_tts_config
+                    set_tts_config(gsvi_config)
+                except ImportError as e:
+                    logger.warning(f"无法设置TTS服务配置: {e}")
+                
                 # 包含TTS路由到主应用
                 app.include_router(router_module.router, prefix="/tts", tags=["语音合成接口"])
                 
