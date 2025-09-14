@@ -42,14 +42,17 @@ logging.getLogger("multipart.multipart").setLevel(logging.ERROR)
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Import necessary components from GPT_SoVITS
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-sys.path.append("%s/GPT_SoVITS" % (now_dir))
+# Use the directory of this file to find the project root
+gsvi_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(gsvi_dir))))
+
+sys.path.append(gsvi_dir)
+sys.path.append(os.path.join(project_root, "GPT_SoVITS"))
 
 # Set up paths
 version = os.environ.get("version", "v2")
-cnhubert_base_path = os.environ.get("cnhubert_base_path", "GPT_SoVITS/pretrained_models/chinese-hubert-base")
-bert_path = os.environ.get("bert_path", "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
+cnhubert_base_path = os.environ.get("cnhubert_base_path", os.path.join(project_root, "GPT_SoVITS/models/chinese-hubert-base"))
+bert_path = os.environ.get("bert_path", os.path.join(project_root, "GPT_SoVITS/models/chinese-roberta-wwm-ext-large"))
 
 # Check CUDA availability and set device
 if "_CUDA_VISIBLE_DEVICES" in os.environ:
@@ -100,22 +103,22 @@ v3v4set = {"v3", "v4"}
 
 # Load default model paths
 pretrained_sovits_name = [
-    "GPT_SoVITS/pretrained_models/s2G488k.pth",
-    "GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s2G2333k.pth",
-    "GPT_SoVITS/pretrained_models/s2Gv3.pth",
-    "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth",
+    os.path.join(project_root, "GPT_SoVITS/models/s2G488k.pth"),
+    os.path.join(project_root, "GPT_SoVITS/models/gsv-v2final-pretrained/s2G2333k.pth"),
+    os.path.join(project_root, "GPT_SoVITS/models/s2Gv3.pth"),
+    os.path.join(project_root, "GPT_SoVITS/models/gsv-v4-pretrained/s2Gv4.pth"),
 ]
 pretrained_gpt_name = [
-    "GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
-    "GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
-    "GPT_SoVITS/pretrained_models/s1v3.ckpt",
-    "GPT_SoVITS/pretrained_models/s1v3.ckpt",
+    os.path.join(project_root, "GPT_SoVITS/models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"),
+    os.path.join(project_root, "GPT_SoVITS/models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt"),
+    os.path.join(project_root, "GPT_SoVITS/models/s1v3.ckpt"),
+    os.path.join(project_root, "GPT_SoVITS/models/s1v3.ckpt"),
 ]
 
 # 路径将由外部设置，这里只提供默认值
 gpt_path = os.environ.get("GPT_PATH", "GPT_weights_v4/March7-e15.ckpt")
 sovits_path = os.environ.get("SOVITS_PATH", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
-vocoder_path = os.environ.get("VOCODER_PATH", f"{now_dir}/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth")
+vocoder_path = os.environ.get("VOCODER_PATH", f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
 
 # Language mappings
 dict_language_v1 = {
@@ -386,14 +389,14 @@ def change_sovits_weights(sovits_path):
         print(f"Loading SoVITS model: {sovits_path}, version: {version_info}, model_version: {model_version}, lora: {if_lora_v3}")
         
         # 检查v3/v4底模是否存在
-        path_sovits_v3 = "GPT_SoVITS/pretrained_models/s2Gv3.pth"
-        path_sovits_v4 = "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"
+        path_sovits_v3 = os.path.join(project_root, "GPT_SoVITS/models/s2Gv3.pth")
+        path_sovits_v4 = os.path.join(project_root, "GPT_SoVITS/models/gsv-v4-pretrained/s2Gv4.pth")
         is_exist_s2gv3 = os.path.exists(path_sovits_v3)
         is_exist_s2gv4 = os.path.exists(path_sovits_v4)
         is_exist = is_exist_s2gv3 if model_version == "v3" else is_exist_s2gv4
         
         if if_lora_v3 == True and is_exist == False:
-            error_msg = f"GPT_SoVITS/pretrained_models/s2Gv{model_version}.pth 底模缺失，无法加载相应 LoRA 权重"
+            error_msg = f"GPT_SoVITS/models/s2Gv{model_version}.pth 底模缺失，无法加载相应 LoRA 权重"
             print(error_msg)
             raise FileNotFoundError(error_msg)
         
@@ -761,14 +764,14 @@ def change_sovits_weights(sovits_path):
         print(f"Loading SoVITS model: {sovits_path}, version: {version_info}, model_version: {model_version}, lora: {if_lora_v3}")
         
         # 检查v3/v4底模是否存在
-        path_sovits_v3 = "GPT_SoVITS/pretrained_models/s2Gv3.pth"
-        path_sovits_v4 = "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"
+        path_sovits_v3 = os.path.join(project_root, "GPT_SoVITS/models/s2Gv3.pth")
+        path_sovits_v4 = os.path.join(project_root, "GPT_SoVITS/models/gsv-v4-pretrained/s2Gv4.pth")
         is_exist_s2gv3 = os.path.exists(path_sovits_v3)
         is_exist_s2gv4 = os.path.exists(path_sovits_v4)
         is_exist = is_exist_s2gv3 if model_version == "v3" else is_exist_s2gv4
         
         if if_lora_v3 == True and is_exist == False:
-            error_msg = f"GPT_SoVITS/pretrained_models/s2Gv{model_version}.pth 底模缺失，无法加载相应 LoRA 权重"
+            error_msg = f"GPT_SoVITS/models/s2Gv{model_version}.pth 底模缺失，无法加载相应 LoRA 权重"
             print(error_msg)
             raise FileNotFoundError(error_msg)
         

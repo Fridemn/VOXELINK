@@ -32,7 +32,10 @@ import uvicorn
 from router import router, set_config
 
 # 导入我们的核心推理模块
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+gsvi_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(gsvi_dir))))
+sys.path.append(gsvi_dir)
+sys.path.append(os.path.join(project_root, "GPT_SoVITS"))
 from core_inference import (
     get_tts_wav,
     load_models,
@@ -111,7 +114,7 @@ def set_model_env_vars():
     
     # 设置预训练模型路径
     os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
-                                                      f"{os.getcwd()}/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth")
+                                                      f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
     
     logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
     logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")
@@ -132,7 +135,7 @@ def set_model_env_vars():
     
     # 设置预训练模型路径
     os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
-                                                      f"{os.getcwd()}/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth")
+                                                      f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
     
     logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
     logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")

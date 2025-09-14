@@ -96,30 +96,84 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
             if gsvi_path not in sys.path:
                 sys.path.insert(0, gsvi_path)
             
-            # 动态导入TTS模块
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("api_server", os.path.join(gsvi_path, "api_server.py"))
-            tts_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(tts_module)
+            # 临时修改当前工作目录，以便相对导入正常工作
+            original_cwd = os.getcwd()
+            os.chdir(gsvi_path)
             
-            # 获取TTS应用
-            tts_app = tts_module.app
-            
-            # 将TTS应用的路由注册到主应用
-            for route in tts_app.routes:
-                if hasattr(route, 'path') and hasattr(route, 'methods') and hasattr(route, 'endpoint'):
-                    # 重新注册路由到主应用，添加前缀
-                    app.add_api_route(
-                        path=f"/tts{route.path}",
-                        endpoint=route.endpoint,
-                        methods=route.methods,
-                        name=f"tts_{route.name}" if hasattr(route, 'name') and route.name else None,
-                        tags=["语音合成接口"]
-                    )
-            
-            logger.info("TTS服务已启用")
+            try:
+                # 动态导入TTS路由模块
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("router", os.path.join(gsvi_path, "router.py"))
+                router_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(router_module)
+                
+                # 加载GSVI配置
+                def load_gsvi_config():
+                    """加载GSVI配置文件"""
+                    config_path = os.path.join(gsvi_path, "config.json")
+                    default_config = {
+                        "default_models": {
+                            "sovits_path": "SoVITS_weights_v4/March7_e10_s4750_l32.pth",
+                            "gpt_path": "GPT_weights_v4/March7-e15.ckpt"
+                        },
+                        "server": {
+                            "host": "0.0.0.0",
+                            "port": 9880,
+                            "log_level": "info"
+                        },
+                        "inference": {
+                            "default_language": "chinese",
+                            "default_how_to_cut": "no_cut",
+                            "default_top_k": 15,
+                            "default_top_p": 1.0,
+                            "default_temperature": 1.0,
+                            "default_ref_free": False,
+                            "default_speed": 1.0,
+                            "default_if_freeze": False,
+                            "default_sample_steps": 8,
+                            "default_if_sr": False,
+                            "default_pause_second": 0.3
+                        }
+                    }
+                    
+                    if os.path.exists(config_path):
+                        try:
+                            import json
+                            with open(config_path, 'r', encoding='utf-8') as f:
+                                config = json.load(f)
+                            logger.info(f"GSVI配置文件加载成功: {config_path}")
+                            return config
+                        except Exception as e:
+                            logger.warning(f"GSVI配置文件加载失败，使用默认配置: {e}")
+                            return default_config
+                    else:
+                        # 创建默认配置文件
+                        try:
+                            import json
+                            with open(config_path, 'w', encoding='utf-8') as f:
+                                json.dump(default_config, f, ensure_ascii=False, indent=2)
+                            logger.info(f"创建默认GSVI配置文件: {config_path}")
+                        except Exception as e:
+                            logger.warning(f"无法创建GSVI配置文件: {e}")
+                        return default_config
+                
+                gsvi_config = load_gsvi_config()
+                
+                # 设置路由模块的配置
+                router_module.set_config(gsvi_config)
+                
+                # 包含TTS路由到主应用
+                app.include_router(router_module.router, prefix="/tts", tags=["语音合成接口"])
+                
+                logger.info("TTS (GSVI) 服务已启用")
+            finally:
+                # 恢复原始工作目录
+                os.chdir(original_cwd)
+                
         except Exception as e:
             logger.warning(f"无法加载TTS模块: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
 
     # 注册静态资源目录
     static_dir = os.path.join(os.path.dirname(__file__), "static")
