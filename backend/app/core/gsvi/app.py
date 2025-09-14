@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-GPT-SoVITS FastAPI 服务器主入口
-替代原有的 Gradio WebUI，提供 REST API 接口
+GPT-SoVITS FastAPI 应用核心模块
+包含应用初始化、配置加载和模型设置
 """
 
 import json
@@ -27,9 +27,6 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
-
-# 导入路由模块
-from router import router, set_config
 
 # 导入我们的核心推理模块
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -76,7 +73,7 @@ def load_config():
             "default_pause_second": 0.3
         }
     }
-    
+
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -104,36 +101,15 @@ def set_model_env_vars():
     """设置模型路径环境变量"""
     default_models = config.get("default_models", {})
     pretrained_models = config.get("pretrained_models", {})
-    
+
     # 设置默认模型路径
     os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_weights_v4/March7-e15.ckpt")
     os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
-    
-    # 设置预训练模型路径
-    os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
-                                                      f"{os.getcwd()}/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth")
-    
-    logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
-    logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")
-    logger.info(f"设置Vocoder路径: {os.environ['VOCODER_PATH']}")
 
-# 加载配置
-config = load_config()
-
-# 设置模型路径环境变量
-def set_model_env_vars():
-    """设置模型路径环境变量"""
-    default_models = config.get("default_models", {})
-    pretrained_models = config.get("pretrained_models", {})
-    
-    # 设置默认模型路径
-    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_weights_v4/March7-e15.ckpt")
-    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
-    
     # 设置预训练模型路径
-    os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
+    os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path",
                                                       f"{os.getcwd()}/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth")
-    
+
     logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
     logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")
     logger.info(f"设置Vocoder路径: {os.environ['VOCODER_PATH']}")
@@ -157,12 +133,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 设置路由模块的配置
-set_config(config)
-
-# 包含路由
-app.include_router(router)
-
 # 在应用启动时初始化模型
 @app.on_event("startup")
 async def startup_event():
@@ -170,33 +140,3 @@ async def startup_event():
     logger.info("正在启动 GPT-SoVITS API 服务器...")
     # 模型初始化将在路由模块中处理
     logger.info("服务器启动完成")
-
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="GPT-SoVITS FastAPI Server")
-    parser.add_argument("--host", default=None, help="Host to bind to")
-    parser.add_argument("--port", type=int, default=None, help="Port to bind to")
-    parser.add_argument("--workers", type=int, default=1, help="Number of worker processes")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
-    
-    args = parser.parse_args()
-    
-    # 使用配置文件中的服务器设置，命令行参数优先
-    server_config = config.get("server", {})
-    host = args.host or server_config.get("host", "127.0.0.1")
-    port = args.port or server_config.get("port", 9880)
-    log_level = server_config.get("log_level", "info")
-    
-    logger.info(f"启动 GPT-SoVITS FastAPI 服务器")
-    logger.info(f"访问地址: http://{host}:{port}")
-    logger.info(f"API 文档: http://{host}:{port}/docs")
-    
-    uvicorn.run(
-        "main:app",
-        host=host,
-        port=port,
-        workers=args.workers,
-        reload=args.reload,
-        log_level=log_level
-    )
