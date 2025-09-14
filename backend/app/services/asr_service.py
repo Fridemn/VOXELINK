@@ -37,9 +37,9 @@ class ASRService:
         """初始化ASR模型"""
         try:
             from funasr import AutoModel
-            
+
             model_dir = self.settings.get("asr_model_dir", "./SenseVoiceSmall")
-            
+
             # 确保路径指向backend目录下的SenseVoiceSmall
             if model_dir.startswith("./"):
                 # 获取backend目录路径
@@ -49,10 +49,10 @@ class ASRService:
                 # 相对路径，相对于backend目录
                 backend_dir = Path(__file__).parent.parent.parent
                 model_dir = backend_dir / model_dir
-            
+
             model_dir = str(model_dir)
             use_gpu = self.settings.get("use_gpu", True)
-            
+
             # 检查目录是否存在
             if not os.path.exists(model_dir):
                 logger.error(f"ASR模型目录不存在: {model_dir}")
@@ -65,9 +65,10 @@ class ASRService:
                 ncpu=4
             )
             logger.info("ASR模型加载完成")
-            
+
         except Exception as e:
             logger.error(f"初始化ASR模型失败: {str(e)}", exc_info=True)
+            self.model = None  # 确保模型为None，这样recognize方法会报错
     
     def _init_vad(self):
         """初始化VAD"""
@@ -106,9 +107,10 @@ class ASRService:
 
         Returns:
             识别结果
-        """        
+        """
         if self.model is None:
             return {"success": False, "error": "ASR模型未初始化"}
+
         try:
             # 如果明确指定了PCM格式，则直接使用PCM数据识别
             if audio_format.lower() == "pcm":
