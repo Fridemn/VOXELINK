@@ -291,7 +291,7 @@
             <div class="settings-row">
                 <div class="settings-item">
                     <label for="server-url">服务器地址:</label>
-                    <input type="text" id="server-url" value="ws://localhost:8765/ws" style="width: 250px;">
+                    <input type="text" id="server-url" value="ws://localhost:8080/stt/ws" style="width: 250px;">
                 </div>
                 <div class="settings-item">
                     <label for="api-key">API密钥:</label>
@@ -307,7 +307,7 @@
             <div class="settings-row">
                 <div class="settings-item">
                     <label for="llm-api-url">LLM API地址:</label>
-                    <input type="text" id="llm-api-url" placeholder="例如: https://api.example.com/llm/chat" style="width: 400px;">
+                    <input type="text" id="llm-api-url" placeholder="例如: http://localhost:8080/llm/chat" style="width: 400px;">
                 </div>
             </div>
         </div>
@@ -342,7 +342,7 @@
                 </div>
                 <div class="vad-stat-item">
                     <div class="vad-stat-label">阈值</div>
-                    <div class="vad-stat-value" id="vad-threshold">0.05</div>
+                    <div class="vad-stat-value" id="vad-threshold">0.025</div>
                 </div>
                 <div class="vad-stat-item">
                     <div class="vad-stat-label">VAD置信度</div>
@@ -388,7 +388,7 @@
             VAD_THRESHOLD: 0.15,          // 降低VAD阈值，使其更容易检测到语音
             MIN_SPEECH_FRAMES: 2,          // 较小的语音帧数，更快开始识别
             MAX_SILENCE_FRAMES: 5,         // 大幅减少静音帧数，更快结束识别
-            AUDIO_RMS_THRESHOLD: 0.05,    // 更低的音频RMS阈值，提高检测灵敏度
+            AUDIO_RMS_THRESHOLD: 0.025,    // 更低的音频RMS阈值，提高检测灵敏度
             REAL_TIME_FRAMES: 15,          // 减少实时识别所需的帧数
             TAIL_THRESHOLD_RATIO: 0.4,     // 语音结尾判断的阈值比例，数值应小于1
             SPEECH_PADDING_FRAMES: 2,      // 在语音开始前添加的额外帧数

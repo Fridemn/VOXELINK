@@ -1,6 +1,10 @@
 .vscode
 
 backend/db.*
+backend/SenseVoiceSmall/image
+backend/SenseVoiceSmall/example
 db.*
 
 logs
+database
+

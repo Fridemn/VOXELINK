@@ -10,7 +10,7 @@ import aiohttp
 import json
 import re
 from typing import Optional, Dict, Any
-from app.core.config import get_settings
+from app.core.stt_config import get_settings
 
 logger = logging.getLogger(__name__)
 

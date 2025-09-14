@@ -6,8 +6,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List
 
-from app.core.security import verify_api_key
-from app.models.schemas import (
+from app.core.stt_security import verify_api_key
+from app.models.stt_schemas import (
     VoiceprintRegistrationRequest, VoiceprintRegistrationResponse,
     VoiceprintCompareRequest, VoiceprintCompareResponse,
     VoiceprintMatchRequest, VoiceprintMatchResponse,

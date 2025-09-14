@@ -6,7 +6,7 @@ from fastapi import Security, HTTPException, Depends, status
 from fastapi.security.api_key import APIKeyHeader
 from typing import Optional
 
-from app.core.config import get_settings
+from app.core.stt_config import get_settings
 
 # API密钥头
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)

@@ -11,7 +11,7 @@ import io
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional, Union
 
-from app.core.config import get_settings
+from app.core.stt_config import get_settings
 
 # 配置日志
 logger = logging.getLogger("asr_service")
@@ -39,6 +39,18 @@ class ASRService:
             from funasr import AutoModel
             
             model_dir = self.settings.get("asr_model_dir", "./SenseVoiceSmall")
+            
+            # 确保路径指向backend目录下的SenseVoiceSmall
+            if model_dir.startswith("./"):
+                # 获取backend目录路径
+                backend_dir = Path(__file__).parent.parent.parent
+                model_dir = backend_dir / model_dir[2:]  # 移除./前缀
+            elif not os.path.isabs(model_dir):
+                # 相对路径，相对于backend目录
+                backend_dir = Path(__file__).parent.parent.parent
+                model_dir = backend_dir / model_dir
+            
+            model_dir = str(model_dir)
             use_gpu = self.settings.get("use_gpu", True)
             
             # 检查目录是否存在

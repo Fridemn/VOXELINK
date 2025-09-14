@@ -9,12 +9,12 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 
-from app.core.security import verify_api_key
+from app.core.stt_security import verify_api_key
 from app.services.asr_service import get_asr_service
 from app.services.vpr_service import get_vpr_service
 
 from app.services.llm_service import get_llm_service
-from app.core.config import get_settings
+from app.core.stt_config import get_settings
 
 # 配置日志
 logger = logging.getLogger("ws_api")

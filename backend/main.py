@@ -65,24 +65,12 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
     # 条件注册STT路由
     if enable_stt:
         try:
-            # 添加STT模块路径到sys.path
-            stt_app_path = os.path.join(os.path.dirname(__file__), "app", "core", "stt", "app")
-            if stt_app_path not in sys.path:
-                sys.path.insert(0, stt_app_path)
-            
-            # 临时修改当前工作目录，以便相对导入正常工作
-            original_cwd = os.getcwd()
-            os.chdir(stt_app_path)
-            
-            try:
-                # 导入STT API路由
-                from api import api_router as stt_api_router
-                app.include_router(stt_api_router, prefix="/stt", tags=["语音识别接口"])
-                logger.info("STT服务已启用")
-            finally:
-                # 恢复原始工作目录
-                os.chdir(original_cwd)
-                
+            # 导入STT API路由
+            from app.api import asr_router, vpr_router, ws_router
+            app.include_router(asr_router, prefix="/stt", tags=["语音识别接口"])
+            app.include_router(vpr_router, prefix="/stt", tags=["声纹识别接口"])
+            app.include_router(ws_router, prefix="/stt", tags=["WebSocket接口"])
+            logger.info("STT服务已启用")
         except Exception as e:
             logger.warning(f"无法加载STT模块: {e}")
             import traceback

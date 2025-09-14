@@ -56,5 +56,35 @@
     "default_sample_steps": 8,
     "default_if_sr": false,
     "default_pause_second": 0.3
+  },
+  "stt": {
+    "host": "0.0.0.0",
+    "port": 8765,
+    "require_auth": false,
+    "api_key": "dd91538f5918826f2bdf881e88fe9956",
+    "asr_model_dir": "./SenseVoiceSmall",
+    "use_gpu": true,
+    "use_vad": true,
+    "vad_threshold": 0.3,
+    "vad_min_speech_duration": 0.25,
+    "database_dir": "./database",
+    "vpr_model": "damo/speech_eres2netv2_sv_zh-cn_16k-common",
+    "vpr_similarity_threshold": 0.25,
+    "vpr_debug": false,
+    "use_cache": true,
+    "cache_size": 100,
+    "only_register_user": false,
+    "identify_unregistered": true,
+    "llm": {
+      "enabled": true,
+      "api_url": "http://localhost:8080/llm/chat",
+      "model": "deepseek/deepseek-v3-0324",
+      "role": "user",
+      "stream": true,
+      "timeout": 60,
+      "connect_timeout": 10,
+      "read_timeout": 50,
+      "tts": true
+    }
   }
 }
