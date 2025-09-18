@@ -57,8 +57,8 @@ def load_config():
     config_path = "config.json"
     default_config = {
         "default_models": {
-            "sovits_path": "/home/fridemn/projects/GPT-SoVITS/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
-            "gpt_path": "/home/fridemn/projects/GPT-SoVITS/GPT_weights_v4/March7-e15.ckpt"
+            "sovits_path": "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
+            "gpt_path": "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"
         },
         "server": {
             "host": "0.0.0.0",
@@ -109,8 +109,8 @@ def set_model_env_vars():
     pretrained_models = config.get("pretrained_models", {})
     
     # 设置默认模型路径
-    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_weights_v4/March7-e15.ckpt")
-    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
+    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt")
+    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth")
     
     # 设置预训练模型路径
     os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
@@ -130,8 +130,8 @@ def set_model_env_vars():
     pretrained_models = config.get("pretrained_models", {})
     
     # 设置默认模型路径
-    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_weights_v4/March7-e15.ckpt")
-    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
+    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt")
+    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth")
     
     # 设置预训练模型路径
     os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 

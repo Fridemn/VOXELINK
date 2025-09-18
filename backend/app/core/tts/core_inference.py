@@ -44,7 +44,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 # Import necessary components from GPT_SoVITS
 # Use the directory of this file to find the project root
 tts_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(tts_dir))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(tts_dir)))
 
 sys.path.append(tts_dir)
 sys.path.append(os.path.join(project_root, "GPT_SoVITS"))
@@ -65,13 +65,13 @@ else:
     device = "cpu"
 
 # Import after setting paths
-from AR.models.t2s_lightning_module import Text2SemanticLightningModule
-from feature_extractor import cnhubert
-from module.mel_processing import spectrogram_torch, mel_spectrogram_torch
-from module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
-from process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
-from text import cleaned_text_to_sequence
-from text.cleaner import clean_text
+from GPT_SoVITS.AR.models.t2s_lightning_module import Text2SemanticLightningModule
+from GPT_SoVITS.feature_extractor import cnhubert
+from GPT_SoVITS.module.mel_processing import spectrogram_torch, mel_spectrogram_torch
+from GPT_SoVITS.module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
+from GPT_SoVITS.process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
+from GPT_SoVITS.text import cleaned_text_to_sequence
+from GPT_SoVITS.text.cleaner import clean_text
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 
 # Set cnhubert path
@@ -116,9 +116,9 @@ pretrained_gpt_name = [
 ]
 
 # 路径将由外部设置，这里只提供默认值
-gpt_path = os.environ.get("GPT_PATH", "GPT_weights_v4/March7-e15.ckpt")
-sovits_path = os.environ.get("SOVITS_PATH", "SoVITS_weights_v4/March7_e10_s4750_l32.pth")
-vocoder_path = os.environ.get("VOCODER_PATH", f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
+gpt_path = os.environ.get("GPT_PATH", os.path.join(project_root, "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"))
+sovits_path = os.environ.get("SOVITS_PATH", os.path.join(project_root, "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth"))
+vocoder_path = os.environ.get("VOCODER_PATH", os.path.join(project_root, "GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth"))
 
 # Language mappings
 dict_language_v1 = {
@@ -247,8 +247,8 @@ def get_bert_inf(phones, word2ph, norm_text, language):
 def get_phones_and_bert(text, language, version, final=False):
     """Extract phones and bert features from text - based on inference_webui.py"""
     try:
-        from text.LangSegmenter import LangSegmenter
-        from text import chinese
+        from GPT_SoVITS.text.LangSegmenter import LangSegmenter
+        from GPT_SoVITS.text import chinese
     except ImportError:
         # Fallback if LangSegmenter is not available
         phones, word2ph, norm_text = clean_text_inf(text, language, version)

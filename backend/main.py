@@ -7,6 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from tortoise.contrib.fastapi import register_tortoise
 from loguru import logger
 
+# 添加GPT_SoVITS路径到sys.path
+gpt_path = os.path.join(os.path.dirname(__file__), "GPT_SoVITS")
+if gpt_path not in sys.path:
+    sys.path.insert(0, gpt_path)
+
 from app import app_config
 from app.api.system import api_system
 from app.api.llm import api_llm
@@ -84,6 +89,11 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
             if tts_path not in sys.path:
                 sys.path.insert(0, tts_path)
             
+            # 添加GPT_SoVITS路径到sys.path
+            gpt_path = os.path.join(os.path.dirname(__file__), "GPT_SoVITS")
+            if gpt_path not in sys.path:
+                sys.path.insert(0, gpt_path)
+            
             # 临时修改当前工作目录，以便相对导入正常工作
             original_cwd = os.getcwd()
             os.chdir(tts_path)
@@ -101,8 +111,8 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                     config_path = os.path.join(tts_path, "config.json")
                     default_config = {
                         "default_models": {
-                            "sovits_path": "SoVITS_weights_v4/March7_e10_s4750_l32.pth",
-                            "gpt_path": "GPT_weights_v4/March7-e15.ckpt"
+                            "sovits_path": "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
+                            "gpt_path": "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"
                         },
                         "server": {
                             "host": "0.0.0.0",
