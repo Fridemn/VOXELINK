@@ -152,8 +152,33 @@ config = None  # 将在main.py中设置
 
 def set_config(global_config):
     """设置全局配置"""
-    global config
+    global config, model_loaded, current_sovits_path, current_gpt_path
     config = global_config
+    
+    # 如果模型还没有加载，加载默认模型
+    if not model_loaded:
+        try:
+            default_sovits = config["default_models"]["sovits_path"]
+            default_gpt = config["default_models"]["gpt_path"]
+            
+            # 检查模型文件是否存在
+            if not os.path.exists(default_sovits):
+                logger.warning(f"SoVITS模型文件不存在: {default_sovits}")
+                return
+            if not os.path.exists(default_gpt):
+                logger.warning(f"GPT模型文件不存在: {default_gpt}")
+                return
+            
+            logger.info(f"正在加载默认模型 - SoVITS: {default_sovits}, GPT: {default_gpt}")
+            load_models(default_gpt, default_sovits)
+            current_sovits_path = default_sovits
+            current_gpt_path = default_gpt
+            model_loaded = True
+            logger.info("TTS模型加载成功")
+        except Exception as e:
+            logger.error(f"加载TTS模型失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
 @router.post("/models/switch", summary="切换模型")
 async def switch_models(request: ModelSwitchRequest):

@@ -733,8 +733,10 @@ def load_models(gpt_path, sovits_path):
         t2s_model = t2s_model.half()
     
     # Load SoVITS model
-    dict_s2 = torch.load(sovits_path, map_location=device)
+    from process_ckpt import load_sovits_new
+    dict_s2 = load_sovits_new(sovits_path)
     hps = dict_s2["config"]
+    hps = DictToAttrRecursive(hps)
     
     vq_model = SynthesizerTrn(
         hps.data.filter_length // 2 + 1,

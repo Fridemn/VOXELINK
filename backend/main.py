@@ -108,7 +108,19 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                 # 加载GSVI配置
                 def load_tts_config():
                     """加载GSVI配置文件"""
+                    # 优先使用根目录的config.json
+                    root_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
                     config_path = os.path.join(tts_path, "config.json")
+                    
+                    # 如果根目录有config.json，使用根目录的，否则使用tts目录的
+                    if os.path.exists(root_config_path):
+                        config_path = root_config_path
+                        logger.info(f"使用根目录GSVI配置文件: {config_path}")
+                    elif os.path.exists(config_path):
+                        logger.info(f"使用TTS目录GSVI配置文件: {config_path}")
+                    else:
+                        logger.warning(f"GSVI配置文件不存在，将使用默认配置")
+                        return default_config
                     default_config = {
                         "default_models": {
                             "sovits_path": "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
