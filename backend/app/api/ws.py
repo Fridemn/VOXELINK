@@ -7,12 +7,40 @@ import json
 import base64
 import asyncio
 from typing import Dict, Any, List
+from pathlib import Path
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ..services.asr_service import get_asr_service
 from ..services.vpr_service import get_vpr_service
 
 from ..services.llm_service import get_llm_service
-from ..core.stt_config import get_settings
+
+# 项目根目录
+ROOT_DIR = Path(__file__).parent.parent.parent
+
+# 全局配置缓存
+_stt_settings = None
+
+
+def get_stt_settings() -> Dict[str, Any]:
+    """获取STT配置"""
+    global _stt_settings
+    
+    if _stt_settings is not None:
+        return _stt_settings
+    
+    config_file = ROOT_DIR / "config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            _stt_settings = config.get("stt", {})
+        except Exception:
+            _stt_settings = {}
+    else:
+        _stt_settings = {}
+    
+    return _stt_settings
+
 
 # 配置日志
 logger = logging.getLogger("ws_api")
@@ -84,7 +112,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         # 记录会话状态
         # 读取全局配置的llm.tts作为默认值
-        settings = get_settings()
+        settings = get_stt_settings()
         llm_config = settings.get("llm", {})
         session_state = {
             "audio_frames": [],

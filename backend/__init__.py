@@ -6,8 +6,6 @@ Similar to Node.js path mapping (@/), we use short aliases to reduce import verb
 
 Usage:
     from backend import core, models, services, utils
-    # Instead of: from app.core.stt_config import get_settings
-    # Use: from core.stt_config import get_settings
 """
 
 # Import app module and its components
@@ -24,7 +22,6 @@ from .app.core.funcall.source.test_functions import TestFunction
 from .app.core.tts.tts_service import set_tts_config
 from .app.core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
 from .app.core.llm.message import Message, Response, MessageRole, MessageSender, MessageComponent, MessageType
-from .app.core.stt_config import get_settings
 from .app.core.db.db_history import db_message_history
 from .app.models import user, chat, stt_schemas
 # Note: services import removed to avoid circular import
@@ -40,7 +37,7 @@ from .app.schemas import response
 __all__ = [
     'app',
     'core', 'models', 'services', 'utils', 'config', 'api', 'schemas',
-    'pipeline', 'db', 'funcall', 'llm', 'tts', 'get_settings',     'set_tts_config', 'db_message_history',
+    'pipeline', 'db', 'funcall', 'llm', 'tts','set_tts_config', 'db_message_history',
     'BaseFunction', 'CurrentDateFunction', 'DateDifferenceFunction', 'TestFunction',
     'tool_functions',
     'get_available_functions', 'execute_function', 'get_function_need_llm', 'find_function_by_command',

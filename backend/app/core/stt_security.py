@@ -2,14 +2,42 @@
 安全模块 - 提供API认证和授权功能
 """
 
+import json
+import os
+from pathlib import Path
 from fastapi import Security, HTTPException, Depends, status
 from fastapi.security.api_key import APIKeyHeader
-from typing import Optional
-
-from .stt_config import get_settings
+from typing import Optional, Dict, Any
 
 # API密钥头
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# 项目根目录
+ROOT_DIR = Path(__file__).parent.parent.parent
+
+# 全局配置缓存
+_stt_settings = None
+
+
+def get_stt_settings() -> Dict[str, Any]:
+    """获取STT配置"""
+    global _stt_settings
+    
+    if _stt_settings is not None:
+        return _stt_settings
+    
+    config_file = ROOT_DIR / "config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            _stt_settings = config.get("stt", {})
+        except Exception:
+            _stt_settings = {}
+    else:
+        _stt_settings = {}
+    
+    return _stt_settings
 
 
 async def get_api_key(api_key_header: str = Security(API_KEY_HEADER)) -> Optional[str]:
@@ -36,7 +64,7 @@ async def verify_api_key(api_key: str = Depends(get_api_key)) -> bool:
     Raises:
         HTTPException: 如果验证失败
     """
-    settings = get_settings()
+    settings = get_stt_settings()
     
     # 如果不需要认证，直接返回True
     if not settings.get("require_auth", False):

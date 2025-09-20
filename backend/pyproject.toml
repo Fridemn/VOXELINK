@@ -11,7 +11,6 @@ dependencies = [
     "loguru (~=0.7)",
     "mem0ai (~=0.1.114)",
     "openai (~=1.76)",
-    "python-dotenv (~=1.0)",
     "python-multipart (~=0.0)",
     "tiktoken (~=0.9)",
     "tortoise-orm (~=0.24)",

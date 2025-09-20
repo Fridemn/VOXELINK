@@ -1,0 +1,127 @@
+{
+  "openai": {
+    "api_key": "your-custom-endpoint-api-key",
+    "base_url": "your-custom-endpoint-base-url"
+  },
+  "anthropic": {
+    "api_key": "sk-ant-your-anthropic-api-key"
+  },
+  "custom_endpoint": {
+    "api_key": "your-custom-endpoint-api-key"
+  },
+  "stt": {
+    "active_service": "openai",
+    "openai_model": "whisper-1",
+    "host": "0.0.0.0",
+    "port": 8765,
+    "require_auth": false,
+    "api_key": "dd91538f5918826f2bdf881e88fe9956",
+    "asr_model_dir": "./SenseVoiceSmall",
+    "use_gpu": true,
+    "use_vad": true,
+    "vad_threshold": 0.3,
+    "vad_min_speech_duration": 0.25,
+    "database_dir": "./database",
+    "vpr_model": "damo/speech_eres2netv2_sv_zh-cn_16k-common",
+    "vpr_similarity_threshold": 0.25,
+    "vpr_debug": false,
+    "use_cache": true,
+    "cache_size": 100,
+    "only_register_user": false,
+    "identify_unregistered": true,
+    "llm": {
+      "enabled": true,
+      "api_url": "http://localhost:8080/llm/chat",
+      "model": "your-custom-endpoint-model",
+      "role": "user",
+      "stream": true,
+      "timeout": 60,
+      "connect_timeout": 10,
+      "read_timeout": 50,
+      "tts": true
+    }
+  },
+  "tts": {
+    "active_service": "edge",
+    "edge_voice": "zh-CN-XiaoxiaoNeural",
+    "base_url": "http://localhost:9880"
+  },
+  "llm": {
+    "default_model": "gpt-3.5-turbo",
+    "openai_models": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "deepseek/deepseek-v3-0324"],
+    "anthropic_models": ["claude-3-sonnet", "claude-3-haiku"],
+    "ollama_base_url": "http://localhost:11434",
+    "ollama_models": ["llama2", "codellama"],
+    "custom_endpoint_base_url": "http://your-custom-endpoint",
+    "custom_endpoint_models": ["custom-model-1", "custom-model-2"]
+  },
+  "database": {
+    "engine": "sqlite",
+    "use_tz": true,
+    "time_zone": "Asia/Shanghai"
+  },
+  "jwt": {
+    "secret_key": "your-secret-key-here",
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 30
+  },
+  "tts_config": {
+    "base_url": "http://localhost:9880",
+    "default_character": "march7",
+    "default_mood": "normal"
+  },
+  "pretrained_models": {
+    "vocoder_path": "GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth",
+    "sovits_v1": "GPT_SoVITS/models/s2G488k.pth",
+    "sovits_v2": "GPT_SoVITS/models/gsv-v2final-pretrained/s2G2333k.pth",
+    "sovits_v3": "GPT_SoVITS/models/s2Gv3.pth",
+    "sovits_v4": "GPT_SoVITS/models/gsv-v4-pretrained/s2Gv4.pth",
+    "gpt_v1": "GPT_SoVITS/models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
+    "gpt_v2": "GPT_SoVITS/models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt",
+    "gpt_v3": "GPT_SoVITS/models/s1v3.ckpt",
+    "gpt_v4": "GPT_SoVITS/models/s1v3.ckpt"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 9880,
+    "log_level": "info"
+  },
+  "characters": {
+    "march7": {
+      "name": "三月七",
+      "default_mood": "normal",
+      "moods": {
+        "normal": {
+          "audio_path": "GPT_SoVITS/ref_audio/march7/nomal.wav",
+          "prompt_text": "裂界，确实会对周围空间造成很多影响啦。空间站电子设备这么多，是不是经常发生短路？",
+          "language": "chinese"
+        },
+        "excited": {
+          "audio_path": "GPT_SoVITS/ref_audio/march7/excited.wav",
+          "prompt_text": "哇！太棒了！我超级兴奋！",
+          "language": "chinese"
+        },
+        "confused": {
+          "audio_path": "GPT_SoVITS/ref_audio/march7/confused.wav",
+          "prompt_text": "诶？这是什么情况？我有点困惑。",
+          "language": "chinese"
+        }
+      }
+    }
+  },
+  "inference": {
+    "default_character": "march7",
+    "default_mood": "normal",
+    "default_language": "chinese",
+    "default_how_to_cut": "no_cut",
+    "default_top_k": 15,
+    "default_top_p": 1.0,
+    "default_temperature": 1.0,
+    "default_ref_free": false,
+    "default_speed": 1.0,
+    "default_if_freeze": false,
+    "default_sample_steps": 8,
+    "default_if_sr": false,
+    "default_pause_second": 0.3
+  }
+}

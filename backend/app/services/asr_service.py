@@ -8,10 +8,38 @@ import base64
 import os
 import tempfile
 import io
+import json
+import os
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional, Union
 
-from ..core.stt_config import get_settings
+# 项目根目录
+ROOT_DIR = Path(__file__).parent.parent.parent
+
+# 全局配置缓存
+_stt_settings = None
+
+
+def get_stt_settings() -> Dict[str, Any]:
+    """获取STT配置"""
+    global _stt_settings
+    
+    if _stt_settings is not None:
+        return _stt_settings
+    
+    config_file = ROOT_DIR / "config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            _stt_settings = config.get("stt", {})
+        except Exception:
+            _stt_settings = {}
+    else:
+        _stt_settings = {}
+    
+    return _stt_settings
+
 
 # 配置日志
 logger = logging.getLogger("asr_service")
@@ -22,7 +50,7 @@ class ASRService:
     
     def __init__(self):
         """初始化语音识别服务"""
-        self.settings = get_settings()
+        self.settings = get_stt_settings()
         self.model = None
         self.vad = None
         

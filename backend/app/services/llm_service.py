@@ -8,9 +8,38 @@ import logging
 import asyncio
 import aiohttp
 import json
+import os
 import re
+from pathlib import Path
 from typing import Optional, Dict, Any
-from ..core.stt_config import get_settings
+
+# 项目根目录
+ROOT_DIR = Path(__file__).parent.parent.parent
+
+# 全局配置缓存
+_stt_settings = None
+
+
+def get_stt_settings() -> Dict[str, Any]:
+    """获取STT配置"""
+    global _stt_settings
+    
+    if _stt_settings is not None:
+        return _stt_settings
+    
+    config_file = ROOT_DIR / "config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            _stt_settings = config.get("stt", {})
+        except Exception:
+            _stt_settings = {}
+    else:
+        _stt_settings = {}
+    
+    return _stt_settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +47,7 @@ class LLMService:
     """大语言模型服务类"""
     
     def __init__(self):
-        self.settings = get_settings()
+        self.settings = get_stt_settings()
         self.llm_config = self.settings.get("llm", {})
         self.api_url = self.llm_config.get("api_url", "")
         self.enabled = self.llm_config.get("enabled", False)
