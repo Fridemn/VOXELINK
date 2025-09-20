@@ -5,7 +5,7 @@ import cn2an
 from pypinyin import lazy_pinyin, Style
 from pypinyin.contrib.tone_convert import to_finals_tone3, to_initials
 
-from text.symbols import punctuation
+from .symbols import punctuation
 from text.tone_sandhi import ToneSandhi
 from text.zh_normalization.text_normlization import TextNormalizer
 

@@ -4,9 +4,9 @@ import re
 import wordsegment
 from g2p_en import G2p
 
-from text.symbols import punctuation
+from .symbols import punctuation
 
-from text.symbols2 import symbols
+from . import symbols2 as symbols
 
 from builtins import str as unicode
 from text.en_normalization.expend import normalize

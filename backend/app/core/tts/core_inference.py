@@ -1,23 +1,3 @@
-"""
-Core inference module for GPT-SoVITS without Gfrom AR.models.t2s_lightning_module import Text2SemanticLightningModule
-from feature_extractor import cnhubert
-from module.mel_processing import spectrogram_torch, mel_spectrogram_torch
-from module.models import SynthesizerTrn, SynthesizerTrnV3, Generator
-from process_ckpt import get_sovits_version_from_path_fast, load_sovits_new
-from text import cleaned_text_to_sequence
-from text.cleaner import clean_text
-from transformers import AutoModelForMaskedLM, AutoTokenizer
-from torchaudio.transforms import Resample
-try:
-    from BigVGAN.bigvgan import BigVGAN
-except ImportError:
-    BigVGAN = None
-try:
-    from tools.audio_sr import AP_BWE
-except ImportError:
-    AP_BWE = Nonependencies
-"""
-
 import logging
 import os
 import re
