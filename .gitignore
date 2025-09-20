@@ -8,3 +8,4 @@ db.*
 logs
 database
 
+backend/config.json
