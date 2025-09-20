@@ -4,6 +4,7 @@
 
 import json
 import os
+import logging
 from pathlib import Path
 from fastapi import Security, HTTPException, Depends, status
 from fastapi.security.api_key import APIKeyHeader
@@ -15,29 +16,19 @@ API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 # 项目根目录
 ROOT_DIR = Path(__file__).parent.parent.parent
 
-# 全局配置缓存
-_stt_settings = None
+# 配置日志
+logger = logging.getLogger(__name__)
 
 
 def get_stt_settings() -> Dict[str, Any]:
     """获取STT配置"""
-    global _stt_settings
-    
-    if _stt_settings is not None:
-        return _stt_settings
-    
-    config_file = ROOT_DIR / "config.json"
-    if config_file.exists():
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            _stt_settings = config.get("stt", {})
-        except Exception:
-            _stt_settings = {}
-    else:
-        _stt_settings = {}
-    
-    return _stt_settings
+    # 使用后端统一配置系统
+    try:
+        from app.config.default import DEFAULT_CONFIG
+        return DEFAULT_CONFIG.get("stt", {})
+    except Exception as e:
+        logger.warning(f"无法加载后端配置，使用空配置: {e}")
+        return {}
 
 
 async def get_api_key(api_key_header: str = Security(API_KEY_HEADER)) -> Optional[str]:

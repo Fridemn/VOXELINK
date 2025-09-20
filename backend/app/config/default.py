@@ -112,3 +112,69 @@ DEFAULT_CONFIG["tts_config"] = {
     "default_character": get_config_value("tts_config.default_character", str, "march7"),
     "default_mood": get_config_value("tts_config.default_mood", str, "normal"),
 }
+
+# GPT-SoVITS TTS配置
+DEFAULT_CONFIG["tts"] = {
+    "gpt_sovits": {
+        "default_models": {
+            "sovits_path": get_config_value("default_models.sovits_path", str, "backend/GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth"),
+            "gpt_path": get_config_value("default_models.gpt_path", str, "backend/GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt")
+        },
+        "pretrained_models": {
+            "vocoder_path": get_config_value("pretrained_models.vocoder_path", str, "backend/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth"),
+            "sovits_v1": get_config_value("pretrained_models.sovits_v1", str, "backend/GPT_SoVITS/models/s2G488k.pth"),
+            "sovits_v2": get_config_value("pretrained_models.sovits_v2", str, "backend/GPT_SoVITS/models/gsv-v2final-pretrained/s2G2333k.pth"),
+            "sovits_v3": get_config_value("pretrained_models.sovits_v3", str, "backend/GPT_SoVITS/models/s2Gv3.pth"),
+            "sovits_v4": get_config_value("pretrained_models.sovits_v4", str, "backend/GPT_SoVITS/models/gsv-v4-pretrained/s2Gv4.pth"),
+            "gpt_v1": get_config_value("pretrained_models.gpt_v1", str, "backend/GPT_SoVITS/models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"),
+            "gpt_v2": get_config_value("pretrained_models.gpt_v2", str, "backend/GPT_SoVITS/models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt"),
+            "gpt_v3": get_config_value("pretrained_models.gpt_v3", str, "backend/GPT_SoVITS/models/s1v3.ckpt"),
+            "gpt_v4": get_config_value("pretrained_models.gpt_v4", str, "backend/GPT_SoVITS/models/s1v3.ckpt")
+        },
+        "server": {
+            "host": get_config_value("server.host", str, "0.0.0.0"),
+            "port": get_config_value("server.port", int, 9880),
+            "log_level": get_config_value("server.log_level", str, "info")
+        },
+        "inference": {
+            "default_character": get_config_value("inference.default_character", str, "march7"),
+            "default_mood": get_config_value("inference.default_mood", str, "normal"),
+            "default_language": get_config_value("inference.default_language", str, "chinese"),
+            "default_how_to_cut": get_config_value("inference.default_how_to_cut", str, "no_cut"),
+            "default_top_k": get_config_value("inference.default_top_k", int, 15),
+            "default_top_p": get_config_value("inference.default_top_p", float, 1.0),
+            "default_temperature": get_config_value("inference.default_temperature", float, 1.0),
+            "default_ref_free": get_config_value("inference.default_ref_free", bool, False),
+            "default_speed": get_config_value("inference.default_speed", float, 1.0),
+            "default_if_freeze": get_config_value("inference.default_if_freeze", bool, False),
+            "default_sample_steps": get_config_value("inference.default_sample_steps", int, 8),
+            "default_if_sr": get_config_value("inference.default_if_sr", bool, False),
+            "default_pause_second": get_config_value("inference.default_pause_second", float, 0.3)
+        }
+    }
+}
+
+# 角色配置
+DEFAULT_CONFIG["characters"] = {
+    "march7": {
+        "name": "三月七",
+        "default_mood": "normal",
+        "moods": {
+            "normal": {
+                "audio_path": "backend/GPT_SoVITS/ref_audio/march7/nomal.wav",
+                "prompt_text": "裂界，确实会对周围空间造成很多影响啦。空间站电子设备这么多，是不是经常发生短路？",
+                "language": "chinese"
+            },
+            "excited": {
+                "audio_path": "backend/GPT_SoVITS/ref_audio/march7/excited.wav",
+                "prompt_text": "哇！太棒了！我超级兴奋！",
+                "language": "chinese"
+            },
+            "confused": {
+                "audio_path": "backend/GPT_SoVITS/ref_audio/march7/confused.wav",
+                "prompt_text": "诶？这是什么情况？我有点困惑。",
+                "language": "chinese"
+            }
+        }
+    }
+}

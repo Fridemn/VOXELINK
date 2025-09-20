@@ -225,14 +225,6 @@ async def switch_models(request: ModelSwitchRequest):
 
         model_loaded = True
 
-        # 保存更新后的配置
-        try:
-            with open("config.json", "w", encoding="utf-8") as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
-            logger.info("配置文件已更新")
-        except Exception as e:
-            logger.warning(f"更新配置文件失败: {e}")
-
         return {
             "message": "; ".join(success_messages),
             "current_sovits": current_sovits_path,
@@ -290,7 +282,11 @@ async def text_to_speech(
 
         # 从配置文件读取推理参数
         inference_config = config.get("inference", {})
-        characters_config = config.get("characters", {})
+        
+        # 从全局配置中获取角色配置
+        from app.config.default import DEFAULT_CONFIG
+        global_config = DEFAULT_CONFIG
+        characters_config = global_config.get("characters", {})
 
         # 获取默认角色和情绪
         default_character = character or inference_config.get("default_character", "march7")
@@ -471,7 +467,11 @@ async def text_to_speech_base64(
 
         # 从配置文件读取推理参数
         inference_config = config.get("inference", {})
-        characters_config = config.get("characters", {})
+        
+        # 从全局配置中获取角色配置
+        from app.config.default import DEFAULT_CONFIG
+        global_config = DEFAULT_CONFIG
+        characters_config = global_config.get("characters", {})
 
         # 获取默认角色和情绪
         default_character = character or inference_config.get("default_character", "march7")
@@ -632,7 +632,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
 async def get_characters():
     """获取可用的角色和情绪列表"""
     try:
-        characters_config = config.get("characters", {})
+        # 从全局配置中获取角色配置
+        from app.config.default import DEFAULT_CONFIG
+        global_config = DEFAULT_CONFIG
+        characters_config = global_config.get("characters", {})
         result = {}
 
         for character_name, character_data in characters_config.items():

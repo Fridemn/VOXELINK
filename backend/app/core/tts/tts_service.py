@@ -36,18 +36,16 @@ def load_tts_config():
     if config is not None:
         return config
 
-    # 从主配置目录加载
-    config_path = Path(__file__).parent.parent.parent.parent / "config.json"
-    if config_path.exists():
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            logger.info(f"TTS配置文件加载成功: {config_path}")
-            return config
-        except Exception as e:
-            logger.warning(f"TTS配置文件加载失败: {e}")
-
-    # 默认配置
+    # 使用后端统一的配置系统
+    try:
+        from app.config.default import DEFAULT_CONFIG
+        config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
+        logger.info("使用后端统一配置系统加载TTS配置")
+        return config
+    except Exception as e:
+        logger.warning(f"无法加载后端配置，使用默认配置: {e}")
+        
+    # 默认配置（作为后备）
     config = {
         "inference": {
             "default_character": "march7",

@@ -44,6 +44,9 @@ from core_inference import (
     dict_language
 )
 
+# 导入后端配置模块
+from app.config.default import DEFAULT_CONFIG
+
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,91 +54,21 @@ logger = logging.getLogger(__name__)
 # 抑制警告
 warnings.filterwarnings("ignore")
 
-# 加载配置文件
-def load_config():
-    """加载配置文件"""
-    config_path = "config.json"
-    default_config = {
-        "default_models": {
-            "sovits_path": "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
-            "gpt_path": "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"
-        },
-        "server": {
-            "host": "0.0.0.0",
-            "port": 9880,
-            "log_level": "info"
-        },
-        "inference": {
-            "default_language": "chinese",
-            "default_how_to_cut": "no_cut",
-            "default_top_k": 15,
-            "default_top_p": 1.0,
-            "default_temperature": 1.0,
-            "default_ref_free": False,
-            "default_speed": 1.0,
-            "default_if_freeze": False,
-            "default_sample_steps": 8,
-            "default_if_sr": False,
-            "default_pause_second": 0.3
-        }
-    }
-    
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            logger.info(f"配置文件加载成功: {config_path}")
-            return config
-        except Exception as e:
-            logger.warning(f"配置文件加载失败，使用默认配置: {e}")
-            return default_config
-    else:
-        # 创建默认配置文件
-        try:
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(default_config, f, ensure_ascii=False, indent=2)
-            logger.info(f"创建默认配置文件: {config_path}")
-        except Exception as e:
-            logger.warning(f"无法创建配置文件: {e}")
-        return default_config
-
-# 加载配置
-config = load_config()
+# 获取TTS配置
+tts_config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
 
 # 设置模型路径环境变量
 def set_model_env_vars():
     """设置模型路径环境变量"""
-    default_models = config.get("default_models", {})
-    pretrained_models = config.get("pretrained_models", {})
+    default_models = tts_config["default_models"]
+    pretrained_models = tts_config["pretrained_models"]
     
     # 设置默认模型路径
-    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt")
-    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth")
+    os.environ["GPT_PATH"] = default_models["gpt_path"]
+    os.environ["SOVITS_PATH"] = default_models["sovits_path"]
     
     # 设置预训练模型路径
-    os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
-                                                      f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
-    
-    logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
-    logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")
-    logger.info(f"设置Vocoder路径: {os.environ['VOCODER_PATH']}")
-
-# 加载配置
-config = load_config()
-
-# 设置模型路径环境变量
-def set_model_env_vars():
-    """设置模型路径环境变量"""
-    default_models = config.get("default_models", {})
-    pretrained_models = config.get("pretrained_models", {})
-    
-    # 设置默认模型路径
-    os.environ["GPT_PATH"] = default_models.get("gpt_path", "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt")
-    os.environ["SOVITS_PATH"] = default_models.get("sovits_path", "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth")
-    
-    # 设置预训练模型路径
-    os.environ["VOCODER_PATH"] = pretrained_models.get("vocoder_path", 
-                                                      f"{project_root}/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth")
+    os.environ["VOCODER_PATH"] = pretrained_models["vocoder_path"]
     
     logger.info(f"设置GPT模型路径: {os.environ['GPT_PATH']}")
     logger.info(f"设置SoVITS模型路径: {os.environ['SOVITS_PATH']}")
@@ -161,7 +94,7 @@ app.add_middleware(
 )
 
 # 设置路由模块的配置
-set_config(config)
+set_config(tts_config)
 
 # 包含路由
 app.include_router(router)
@@ -186,10 +119,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 使用配置文件中的服务器设置，命令行参数优先
-    server_config = config.get("server", {})
-    host = args.host or server_config.get("host", "127.0.0.1")
-    port = args.port or server_config.get("port", 9880)
-    log_level = server_config.get("log_level", "info")
+    server_config = tts_config["server"]
+    host = args.host or server_config["host"]
+    port = args.port or server_config["port"]
+    log_level = server_config["log_level"]
     
     logger.info(f"启动 GPT-SoVITS FastAPI 服务器")
     logger.info(f"访问地址: http://{host}:{port}")

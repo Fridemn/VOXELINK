@@ -111,64 +111,11 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                 # 加载GSVI配置
                 def load_tts_config():
                     """加载GSVI配置文件"""
-                    # 优先使用根目录的config.json
-                    root_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
-                    config_path = os.path.join(tts_path, "config.json")
-                    
-                    # 如果根目录有config.json，使用根目录的，否则使用tts目录的
-                    if os.path.exists(root_config_path):
-                        config_path = root_config_path
-                        logger.info(f"使用根目录GSVI配置文件: {config_path}")
-                    elif os.path.exists(config_path):
-                        logger.info(f"使用TTS目录GSVI配置文件: {config_path}")
-                    else:
-                        logger.warning(f"GSVI配置文件不存在，将使用默认配置")
-                        return default_config
-                    default_config = {
-                        "default_models": {
-                            "sovits_path": "GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
-                            "gpt_path": "GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"
-                        },
-                        "server": {
-                            "host": "0.0.0.0",
-                            "port": 9880,
-                            "log_level": "info"
-                        },
-                        "inference": {
-                            "default_language": "chinese",
-                            "default_how_to_cut": "no_cut",
-                            "default_top_k": 15,
-                            "default_top_p": 1.0,
-                            "default_temperature": 1.0,
-                            "default_ref_free": False,
-                            "default_speed": 1.0,
-                            "default_if_freeze": False,
-                            "default_sample_steps": 8,
-                            "default_if_sr": False,
-                            "default_pause_second": 0.3
-                        }
-                    }
-                    
-                    if os.path.exists(config_path):
-                        try:
-                            import json
-                            with open(config_path, 'r', encoding='utf-8') as f:
-                                config = json.load(f)
-                            logger.info(f"GSVI配置文件加载成功: {config_path}")
-                            return config
-                        except Exception as e:
-                            logger.warning(f"GSVI配置文件加载失败，使用默认配置: {e}")
-                            return default_config
-                    else:
-                        # 创建默认配置文件
-                        try:
-                            import json
-                            with open(config_path, 'w', encoding='utf-8') as f:
-                                json.dump(default_config, f, ensure_ascii=False, indent=2)
-                            logger.info(f"创建默认GSVI配置文件: {config_path}")
-                        except Exception as e:
-                            logger.warning(f"无法创建GSVI配置文件: {e}")
-                        return default_config
+                    # 直接使用后端统一的配置系统
+                    from app.config.default import DEFAULT_CONFIG
+                    tts_config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
+                    logger.info("加载TTS配置")
+                    return tts_config
                 
                 tts_config = load_tts_config()
                 

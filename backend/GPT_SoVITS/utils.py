@@ -210,26 +210,23 @@ def get_hparams(init=True, stage=1):
 
     args = parser.parse_args()
 
-    config_path = args.config
-    with open(config_path, "r") as f:
-        data = f.read()
-    config = json.loads(data)
+    # 使用后端统一配置系统替代直接读取配置文件
+    import sys
+    import os
+    # 添加项目根目录到路径
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    sys.path.append(os.path.join(project_root, "backend"))
+    from app.config.default import DEFAULT_CONFIG
 
-    hparams = HParams(**config)
+    # 获取TTS配置
+    tts_config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
+
+    # 创建HParams对象
+    hparams = HParams(**tts_config)
     hparams.pretrain = args.pretrain
     hparams.resume_step = args.resume_step
-    # hparams.data.exp_dir = args.exp_dir
-    if stage == 1:
-        model_dir = hparams.s1_ckpt_dir
-    else:
-        model_dir = hparams.s2_ckpt_dir
-    config_save_path = os.path.join(model_dir, "config.json")
 
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    with open(config_save_path, "w") as f:
-        f.write(data)
+    logger.info("使用后端统一配置系统加载TTS配置")
     return hparams
 
 
@@ -245,7 +242,7 @@ def clean_checkpoints(path_to_models="logs/44k/", n_ckpts_to_keep=2, sort_by_tim
     import re
 
     ckpts_files = [f for f in os.listdir(path_to_models) if os.path.isfile(os.path.join(path_to_models, f))]
-    name_key = lambda _f: int(re.compile("._(\d+)\.pth").match(_f).group(1))
+    name_key = lambda _f: int(re.compile(r"._(\d+)\.pth").match(_f).group(1))
     time_key = lambda _f: os.path.getmtime(os.path.join(path_to_models, _f))
     sort_key = time_key if sort_by_time else name_key
     x_sorted = lambda _x: sorted(
@@ -261,22 +258,41 @@ def clean_checkpoints(path_to_models="logs/44k/", n_ckpts_to_keep=2, sort_by_tim
 
 
 def get_hparams_from_dir(model_dir):
-    config_save_path = os.path.join(model_dir, "config.json")
-    with open(config_save_path, "r") as f:
-        data = f.read()
-    config = json.loads(data)
+    """从模型目录获取超参数配置"""
+    # 使用后端统一配置系统替代直接读取配置文件
+    import sys
+    import os
+    # 添加项目根目录到路径
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    sys.path.append(os.path.join(project_root, "backend"))
+    from app.config.default import DEFAULT_CONFIG
+
+    # 获取TTS配置
+    config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
 
     hparams = HParams(**config)
     hparams.model_dir = model_dir
+
+    logger.info("使用后端统一配置系统从目录加载TTS配置")
     return hparams
 
 
 def get_hparams_from_file(config_path):
-    with open(config_path, "r") as f:
-        data = f.read()
-    config = json.loads(data)
+    """从文件获取超参数配置"""
+    # 使用后端统一配置系统替代直接读取配置文件
+    import sys
+    import os
+    # 添加项目根目录到路径
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    sys.path.append(os.path.join(project_root, "backend"))
+    from app.config.default import DEFAULT_CONFIG
+
+    # 获取TTS配置
+    config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
 
     hparams = HParams(**config)
+
+    logger.info("使用后端统一配置系统从文件加载TTS配置")
     return hparams
 
 
