@@ -6,7 +6,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 
-from ..core.stt_security import verify_api_key
 from ..models.stt_schemas import AudioRecognitionRequest, AudioRecognitionResponse
 from ..services.asr_service import get_asr_service
 from ..services.vpr_service import get_vpr_service
@@ -20,8 +19,7 @@ router = APIRouter(prefix="/asr", tags=["语音识别"])
 
 @router.post("/recognize", response_model=AudioRecognitionResponse, summary="语音识别")
 async def recognize_audio(
-    request: AudioRecognitionRequest,
-    authenticated: bool = Depends(verify_api_key)
+    request: AudioRecognitionRequest
 ) -> Dict[str, Any]:
     """
     识别音频并返回文本结果

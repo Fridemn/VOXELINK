@@ -6,7 +6,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List
 
-from ..core.stt_security import verify_api_key
 from ..models.stt_schemas import (
     VoiceprintRegistrationRequest, VoiceprintRegistrationResponse,
     VoiceprintCompareRequest, VoiceprintCompareResponse,
@@ -25,8 +24,7 @@ router = APIRouter(prefix="/vpr", tags=["声纹识别"])
 
 @router.post("/register", response_model=VoiceprintRegistrationResponse, summary="注册声纹")
 async def register_voiceprint(
-    request: VoiceprintRegistrationRequest,
-    authenticated: bool = Depends(verify_api_key)
+    request: VoiceprintRegistrationRequest
 ) -> Dict[str, Any]:
     """
     注册新的声纹样本
@@ -65,8 +63,7 @@ async def register_voiceprint(
 
 @router.post("/compare", response_model=VoiceprintCompareResponse, summary="比对声纹")
 async def compare_voiceprints(
-    request: VoiceprintCompareRequest,
-    authenticated: bool = Depends(verify_api_key)
+    request: VoiceprintCompareRequest
 ) -> Dict[str, Any]:
     """
     比对两段音频的声纹相似度
@@ -101,8 +98,7 @@ async def compare_voiceprints(
 
 @router.post("/identify", response_model=VoiceprintMatchResponse, summary="识别声纹")
 async def identify_voiceprint(
-    request: VoiceprintMatchRequest,
-    authenticated: bool = Depends(verify_api_key)
+    request: VoiceprintMatchRequest
 ) -> Dict[str, Any]:
     """
     识别音频的声纹
@@ -135,8 +131,7 @@ async def identify_voiceprint(
 
 @router.post("/remove", response_model=VoiceprintRemoveResponse, summary="删除声纹")
 async def remove_voiceprint(
-    request: VoiceprintRemoveRequest,
-    authenticated: bool = Depends(verify_api_key)
+    request: VoiceprintRemoveRequest
 ) -> Dict[str, Any]:
     """
     删除声纹
@@ -158,9 +153,7 @@ async def remove_voiceprint(
 
 
 @router.get("/list", response_model=VoiceprintListResponse, summary="获取声纹列表")
-async def list_voiceprints(
-    authenticated: bool = Depends(verify_api_key)
-) -> Dict[str, Any]:
+async def list_voiceprints() -> Dict[str, Any]:
     """
     获取声纹列表
     
