@@ -10,7 +10,7 @@ import numpy as np
 import base64
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 
-from app.core.stt_config import get_settings
+from ..core.stt_config import get_settings
 
 # 配置日志
 logger = logging.getLogger("vpr_service")

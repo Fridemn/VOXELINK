@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 import datetime
 from loguru import logger
 
-from app.core.funcall.source import BaseFunction
+from . import BaseFunction
 
 
 class CurrentDateFunction(BaseFunction):

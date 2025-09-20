@@ -12,9 +12,9 @@ gpt_path = os.path.join(os.path.dirname(__file__), "GPT_SoVITS")
 if gpt_path not in sys.path:
     sys.path.insert(0, gpt_path)
 
-from app import app_config
 from app.api.system import api_system
 from app.api.llm import api_llm
+from app.config.app_config import AppConfig
 from fastapi.staticfiles import StaticFiles
 
 # 解析命令行参数
@@ -27,6 +27,9 @@ parser.add_argument("--reload", action="store_true", help="Enable auto-reload fo
 
 def create_app(enable_stt: bool = False, enable_tts: bool = False):
     """创建FastAPI应用"""
+    
+    # 创建应用配置实例
+    app_config = AppConfig()
     
     app = FastAPI(title="VOXELINK Backend", description="Voxelink Backend with integrated STT/TTS", version="0.1.0")
 
@@ -71,10 +74,10 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
     if enable_stt:
         try:
             # 导入STT API路由
-            from app.api import asr_router, vpr_router, ws_router
-            app.include_router(asr_router, prefix="/stt")
-            app.include_router(vpr_router, prefix="/stt")
-            app.include_router(ws_router, prefix="/stt")
+            from backend import asr, vpr, ws
+            app.include_router(asr.router, prefix="/stt")
+            app.include_router(vpr.router, prefix="/stt")
+            app.include_router(ws.router, prefix="/stt")
             logger.info("STT服务已启用")
         except Exception as e:
             logger.warning(f"无法加载STT模块: {e}")
@@ -174,7 +177,7 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                 
                 # 设置TTS服务的配置
                 try:
-                    from app.core.tts.tts_service import set_tts_config
+                    from backend import set_tts_config
                     set_tts_config(tts_config)
                 except ImportError as e:
                     logger.warning(f"无法设置TTS服务配置: {e}")

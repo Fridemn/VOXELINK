@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from loguru import logger
 
-from app import app_config
+from ... import app_config
 
 # 添加GSVI路径到sys.path
 tts_path = Path(__file__).parent.parent / "tts"

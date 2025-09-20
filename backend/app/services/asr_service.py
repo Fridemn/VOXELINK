@@ -11,7 +11,7 @@ import io
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional, Union
 
-from app.core.stt_config import get_settings
+from ..core.stt_config import get_settings
 
 # 配置日志
 logger = logging.getLogger("asr_service")

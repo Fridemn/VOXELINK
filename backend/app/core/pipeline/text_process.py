@@ -5,11 +5,11 @@ import json
 import traceback
 from loguru import logger
 
-from app import app_config
-from app.utils.token_counter import TokenCounter
-from app.core.db.db_history import db_message_history
-from app.core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent, MessageType
-from app.core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
+from ... import app_config
+from ...utils.token_counter import TokenCounter
+from ...core.db.db_history import db_message_history
+from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent, MessageType
+from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
 
 
 llm_config = app_config.llm

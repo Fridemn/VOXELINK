@@ -14,10 +14,10 @@ from fastapi import UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from app import app_config
-from app.core.pipeline.text_process import text_process
-from app.core.llm.message import Message, Response, MessageRole
-from app.core.tts.tts_service import text_to_speech_stream
+from ... import app_config
+from .text_process import text_process
+from ..tts.tts_service import text_to_speech_stream
+from ..llm.message import Message, Response, MessageRole
 import asyncio
 import re
 

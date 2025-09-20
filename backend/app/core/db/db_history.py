@@ -15,8 +15,8 @@ from fastapi import HTTPException
 from tortoise.exceptions import OperationalError, ConfigurationError
 from loguru import logger
 
-from app.models.chat import ChatHistory, ChatMessage, MessageRole
-from app.core.llm.message import Message, MessageComponent, MessageType
+from ...models.chat import ChatHistory, ChatMessage, MessageRole
+from ..llm.message import Message, MessageComponent, MessageType
 
 
 class DBMessageHistory:

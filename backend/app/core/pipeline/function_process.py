@@ -14,12 +14,10 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from app import app_config
-from app.core.pipeline.text_process import text_process
-
-# from app.core.pipeline.voice_process import voice_process
-from app.core.db.db_history import db_message_history
-from app.core.llm.message import Message, MessageRole, MessageComponent, MessageSender, MessageType
+from ... import app_config
+from .text_process import text_process
+from ...core.db.db_history import db_message_history
+from ...core.llm.message import Message, MessageRole, MessageComponent, MessageSender, MessageType
 
 DEFAULT_MODEL = app_config["llm"]["default_model"]
 

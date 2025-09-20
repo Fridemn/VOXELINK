@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 
 import datetime
 
-from app.core.funcall.source import BaseFunction
+from . import BaseFunction
 
 
 class TestFunction(BaseFunction):

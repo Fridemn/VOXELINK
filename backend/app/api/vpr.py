@@ -6,15 +6,15 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List
 
-from app.core.stt_security import verify_api_key
-from app.models.stt_schemas import (
+from ..core.stt_security import verify_api_key
+from ..models.stt_schemas import (
     VoiceprintRegistrationRequest, VoiceprintRegistrationResponse,
     VoiceprintCompareRequest, VoiceprintCompareResponse,
     VoiceprintMatchRequest, VoiceprintMatchResponse,
     VoiceprintRemoveRequest, VoiceprintRemoveResponse,
     VoiceprintListResponse
 )
-from app.services.vpr_service import get_vpr_service
+from ..services.vpr_service import get_vpr_service
 
 # 配置日志
 logger = logging.getLogger("vpr_api")

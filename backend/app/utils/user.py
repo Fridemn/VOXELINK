@@ -16,21 +16,33 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from loguru import logger
 
-from app import app_config
-from app.models.user import User, VerificationCode
-from app.utils.verification_code_platform import SendSms
+from ..config.app_config import AppConfig
+from ..models.user import User, VerificationCode
+from .verification_code_platform import SendSms
+
+# 延迟创建app_config实例
+def get_app_config():
+    if not hasattr(get_app_config, '_instance'):
+        get_app_config._instance = AppConfig()
+    return get_app_config._instance
+
+# 获取jwt配置
+def get_jwt_config():
+    config = get_app_config()
+    return config.jwt
 
 # 验证码类型常量
 USER_REGISTER_CODE = "register"
 USER_LOGIN_CODE = "login"
 USER_RESET_CODE = "reset"
 
-jwt_config = app_config.jwt
+# 获取JWT配置
+jwt_config = get_jwt_config()
 if jwt_config is None:
     raise ValueError("JWT configuration not found in app_config")
 
-SECRET_KEY = jwt_config["secret_key"]  # 修改为使用正确的配置键名
-ALGORITHM = "HS256"
+SECRET_KEY = jwt_config["secret_key"]
+ALGORITHM = jwt_config.get("algorithm", "HS256")
 
 
 # ------------------------------

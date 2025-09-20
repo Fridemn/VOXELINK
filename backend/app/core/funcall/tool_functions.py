@@ -7,9 +7,9 @@ app/core/funcall/tool_functions.py
 from typing import Dict, Any, List, Optional
 from loguru import logger
 
-from app.core.funcall.source import BaseFunction
-from app.core.funcall.source.date_functions import CurrentDateFunction, DateDifferenceFunction
-from app.core.funcall.source.test_functions import TestFunction
+from .source import BaseFunction
+from .source.date_functions import CurrentDateFunction, DateDifferenceFunction
+from .source.test_functions import TestFunction
 
 # 实例化所有功能类
 function_instances = {

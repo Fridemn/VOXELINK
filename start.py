@@ -28,6 +28,11 @@ backend_dir = Path(__file__).parent / "backend"
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
+# 添加backend/app目录到Python路径
+app_dir = backend_dir / "app"
+if str(app_dir) not in sys.path:
+    sys.path.insert(0, str(app_dir))
+
 # 导入主应用
 from main import create_app
 

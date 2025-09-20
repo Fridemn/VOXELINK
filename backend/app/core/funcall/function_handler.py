@@ -10,13 +10,15 @@ from typing import Dict, Any, List, Optional, Tuple
 import json
 from loguru import logger
 
-from app.core.funcall.tool_functions import (
+from .tool_functions import (
     get_available_functions,
     execute_function,
     get_function_need_llm,
     find_function_by_command,
 )
-from app.core.llm.message import Message, MessageComponent, MessageType, MessageRole, MessageSender
+
+
+from ..llm.message import Message, MessageComponent, MessageType, MessageRole, MessageSender
 
 
 class FunctionHandler:

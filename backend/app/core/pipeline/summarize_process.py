@@ -11,9 +11,9 @@ import traceback
 from fastapi import HTTPException
 from loguru import logger
 
-from app.core.db.db_history import db_message_history
-from app.core.pipeline.text_process import text_process
-from app.core.llm.message import Message, MessageRole
+from ...core.db.db_history import db_message_history
+from .text_process import text_process
+from ...core.llm.message import Message, MessageRole
 
 
 class SummarizeProcess:

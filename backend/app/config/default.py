@@ -47,8 +47,8 @@ def get_env(key: str, type_: Type[_T], default: Optional[_T] = None) -> _T:
 # 配置字典
 DEFAULT_CONFIG = {
     "openai": {
-        "api_key": get_env("OPENAI_API_KEY", str),
-        "base_url": get_env("OPENAI_BASE_URL", str),
+        "api_key": get_env("OPENAI_API_KEY", str, "sk-default-key"),
+        "base_url": get_env("OPENAI_BASE_URL", str, "https://api.openai.com/v1"),
     },
     "anthropic": {
         "api_key": get_env("ANTHROPIC_API_KEY", str, "sk-ant-default-key"),
@@ -57,16 +57,16 @@ DEFAULT_CONFIG = {
         "api_key": get_env("CUSTOM_ENDPOINT_API_KEY", str, "default-custom-key"),
     },
     "stt": {
-        "active_service": get_env("STT_ACTIVE_SERVICE", str),
-        "openai_model": get_env("STT_OPENAI_MODEL", str),
+        "active_service": get_env("STT_ACTIVE_SERVICE", str, "openai"),
+        "openai_model": get_env("STT_OPENAI_MODEL", str, "whisper-1"),
     },
     "tts": {
-        "active_service": get_env("TTS_ACTIVE_SERVICE", str),
-        "edge_voice": get_env("TTS_EDGE_VOICE", str),
+        "active_service": get_env("TTS_ACTIVE_SERVICE", str, "edge"),
+        "edge_voice": get_env("TTS_EDGE_VOICE", str, "zh-CN-XiaoxiaoNeural"),
     },
     "llm": {
-        "default_model": get_env("LLM_DEFAULT_MODEL", str),
-        "openai_models": get_env("LLM_OPENAI_MODELS", list),
+        "default_model": get_env("LLM_DEFAULT_MODEL", str, "gpt-3.5-turbo"),
+        "openai_models": get_env("LLM_OPENAI_MODELS", list, ["gpt-3.5-turbo", "gpt-4"]),
         "anthropic_models": get_env("LLM_ANTHROPIC_MODELS", list, ["claude-3-7-sonnet"]),
         "ollama_base_url": get_env("LLM_OLLAMA_BASE_URL", str, "http://localhost:11434"),
         "ollama_models": get_env("LLM_OLLAMA_MODELS", list, ["llama2"]),
@@ -74,9 +74,14 @@ DEFAULT_CONFIG = {
         "custom_endpoint_models": get_env("LLM_CUSTOM_ENDPOINT_MODELS", list, ["custom-model-1"]),
     },
     "database": {
-        "engine": get_env("DB_ENGINE", str),
-        "use_tz": get_env("DB_USE_TZ", bool),
-        "time_zone": get_env("DB_TIME_ZONE", str),
+        "engine": get_env("DB_ENGINE", str, "sqlite"),
+        "use_tz": get_env("DB_USE_TZ", bool, True),
+        "time_zone": get_env("DB_TIME_ZONE", str, "Asia/Shanghai"),
+    },
+    "jwt": {
+        "secret_key": get_env("JWT_SECRET_KEY", str, "your-secret-key-here"),
+        "algorithm": get_env("JWT_ALGORITHM", str, "HS256"),
+        "access_token_expire_minutes": get_env("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", int, 30),
     },
 }
 

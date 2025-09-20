@@ -13,13 +13,13 @@ from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Depends, Form, Query
 from loguru import logger
 
-from app import app_config
-from app.core.llm.message import MessageRole
-from app.core.db.db_history import db_message_history
-from app.core.pipeline.chat_process import chat_process
-from app.core.pipeline.function_process import function_process
-from app.core.pipeline.summarize_process import summarize_process
-from app.core.funcall.function_handler import function_handler
+from .. import app_config
+from ..core.llm.message import MessageRole
+from ..core.db.db_history import db_message_history
+from ..core.pipeline.chat_process import chat_process
+from ..core.pipeline.function_process import function_process
+from ..core.pipeline.summarize_process import summarize_process
+from ..core.funcall.function_handler import function_handler
 
 
 api_llm = APIRouter()
