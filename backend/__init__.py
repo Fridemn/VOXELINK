@@ -18,16 +18,23 @@ from .app import core, models, utils, config, api, schemas
 # Note: services import removed to avoid circular import
 from .app.core import pipeline, db, funcall, llm, tts
 from .app.core.funcall.tool_functions import get_available_functions, execute_function, get_function_need_llm, find_function_by_command
+from .app.core.funcall.source import BaseFunction
 from .app.core.funcall.source.date_functions import CurrentDateFunction, DateDifferenceFunction
 from .app.core.funcall.source.test_functions import TestFunction
 from .app.core.tts.tts_service import set_tts_config
 from .app.core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
+from .app.core.llm.message import Message, Response, MessageRole, MessageSender, MessageComponent, MessageType
+from .app.core.stt_config import get_settings
+from .app.core.db.db_history import db_message_history
 from .app.models import user, chat, stt_schemas
 # Note: services import removed to avoid circular import
 from .app.utils import logger, token_counter
 from .app.config import app_config
 from .app.api.system import api_system
 from .app.api.llm import api_llm
+from .app.api.asr import router as asr
+from .app.api.vpr import router as vpr
+from .app.api.ws import router as ws
 from .app.schemas import response
 
 __all__ = [

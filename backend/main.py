@@ -75,9 +75,9 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
         try:
             # 导入STT API路由
             from backend import asr, vpr, ws
-            app.include_router(asr.router, prefix="/stt")
-            app.include_router(vpr.router, prefix="/stt")
-            app.include_router(ws.router, prefix="/stt")
+            app.include_router(asr, prefix="/stt")
+            app.include_router(vpr, prefix="/stt")
+            app.include_router(ws, prefix="/stt")
             logger.info("STT服务已启用")
         except Exception as e:
             logger.warning(f"无法加载STT模块: {e}")
