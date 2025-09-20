@@ -6,10 +6,8 @@ import logging
 import json
 import base64
 import asyncio
-from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
-
-from ..core.stt_security import verify_api_key
+from typing import Dict, Any, List
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ..services.asr_service import get_asr_service
 from ..services.vpr_service import get_vpr_service
 

@@ -66,7 +66,6 @@ async def unified_chat(
         user_id = "anonymous"
         history_id = await db_message_history.get_user_history_id(user_id)
 
-        # TTS功能已启用，无需token校验
         
         # 检查是否是函数调用命令
         if message:
