@@ -1,7 +1,7 @@
 {
   "default_models": {
-    "sovits_path": "backend/GPT_SoVITS/models/s2Gv3.pth",
-    "gpt_path": "backend/GPT_SoVITS/models/s1v3.ckpt"
+    "sovits_path": "backend/GPT_SoVITS/models/SoVITS_weights_v4/March7_e10_s4750_l32.pth",
+    "gpt_path": "backend/GPT_SoVITS/models/GPT_weights_v4/March7-e15.ckpt"
   },
   "pretrained_models": {
     "vocoder_path": "backend/GPT_SoVITS/models/gsv-v4-pretrained/vocoder.pth",

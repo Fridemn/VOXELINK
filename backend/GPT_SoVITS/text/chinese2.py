@@ -32,8 +32,8 @@ if is_g2pw:
 
     parent_directory = os.path.dirname(current_file_path)
     g2pw = G2PWPinyin(
-        model_dir="GPT_SoVITS/text/G2PWModel",
-        model_source=os.environ.get("bert_path", "GPT_SoVITS/models/chinese-roberta-wwm-ext-large"),
+        model_dir="backend/GPT_SoVITS/text/G2PWModel",
+        model_source=os.environ.get("bert_path", "backend/GPT_SoVITS/models/chinese-roberta-wwm-ext-large"),
         v_to_u=False,
         neutral_tone_with_five=True,
     )
