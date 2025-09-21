@@ -113,6 +113,36 @@ class ASRService:
             return torch.cuda.is_available()
         except:
             return False
+    
+    def _clean_sensevoice_output(self, raw_text: str) -> str:
+        """清理SenseVoice模型输出的特殊标记
+        
+        Args:
+            raw_text: 原始识别结果，包含特殊标记
+            
+        Returns:
+            清理后的纯文本
+        """
+        try:
+            # 尝试使用SenseVoice的rich transcription后处理
+            from funasr.utils.postprocess_utils import rich_transcription_postprocess
+            cleaned_text = rich_transcription_postprocess(raw_text)
+            logger.debug(f"SenseVoice rich后处理: '{raw_text}' -> '{cleaned_text}'")
+            return cleaned_text
+        except ImportError:
+            # 如果没有rich_transcription_postprocess，使用正则表达式清理
+            import re
+            cleaned_text = re.sub(r'<\|[^|]*\|>', '', raw_text)
+            cleaned_text = cleaned_text.strip()
+            logger.debug(f"SenseVoice正则清理: '{raw_text}' -> '{cleaned_text}'")
+            return cleaned_text
+        except Exception as e:
+            logger.warning(f"SenseVoice后处理失败，使用正则清理: {str(e)}")
+            import re
+            cleaned_text = re.sub(r'<\|[^|]*\|>', '', raw_text)
+            cleaned_text = cleaned_text.strip()
+            return cleaned_text
+    
     def recognize(self, audio_data: bytes, audio_format: str = "auto") -> Dict[str, Any]:
         """识别音频
 
@@ -198,14 +228,20 @@ class ASRService:
             logger.info(f"临时WAV文件大小: {file_size} 字节，是否为原始WAV格式: {is_wav_format}")
             
             # 执行识别
-            result = self.model.generate(input=temp_path)
+            result = self.model.generate(
+                input=temp_path,
+                language="zn",  # 强制指定中文
+                use_itn=False    # 不使用逆文本规范化，保持原始输出
+            )
             
             # 删除临时文件
             os.unlink(temp_path)
             
             # 提取识别文本 - SenseVoice结果格式
             if isinstance(result, list) and len(result) > 0:
-                text = result[0].get("text", "")
+                raw_text = result[0].get("text", "")
+                # 清理SenseVoice的特殊标记，只保留实际文本
+                text = self._clean_sensevoice_output(raw_text)
                 logger.info(f"识别结果: {text}")
             else:
                 text = ""
@@ -254,7 +290,9 @@ class ASRService:
                     audio_format="pcm",
                     sample_rate=16000,
                     bits_per_sample=16,
-                    channels=1
+                    channels=1,
+                    language="zn",  # 强制指定中文
+                    use_itn=False    # 不使用逆文本规范化
                 )
             except Exception as e:
                 logger.warning(f"直接PCM识别失败，尝试转换为WAV: {str(e)}")
@@ -273,7 +311,11 @@ class ASRService:
                         wav_file.writeframes(pcm_data)
                 
                 # 使用生成的WAV文件识别
-                result = self.model.generate(input=wav_path)
+                result = self.model.generate(
+                    input=wav_path,
+                    language="zn",  # 强制指定中文
+                    use_itn=False    # 不使用逆文本规范化
+                )
                 
                 # 删除临时WAV文件
                 try:
@@ -289,7 +331,9 @@ class ASRService:
             
             # 提取识别文本 - SenseVoice结果格式
             if isinstance(result, list) and len(result) > 0:
-                text = result[0].get("text", "")
+                raw_text = result[0].get("text", "")
+                # 清理SenseVoice的特殊标记，只保留实际文本
+                text = self._clean_sensevoice_output(raw_text)
                 logger.info(f"PCM直接识别结果: {text}")
             else:
                 text = ""

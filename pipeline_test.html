@@ -120,6 +120,72 @@
     </div>
 
     <script>
+        // WebM转WAV转换函数
+        async function convertWebMToWAV(webmBlob) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    // 创建AudioContext
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // 解码WebM音频
+                    const arrayBuffer = await webmBlob.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // 创建WAV文件
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    resolve(wavBlob);
+                    
+                    audioContext.close();
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+        
+        // AudioBuffer转WAV的辅助函数
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const sampleRate = buffer.sampleRate;
+            const numChannels = buffer.numberOfChannels;
+            
+            // 创建WAV文件缓冲区
+            const arrayBuffer = new ArrayBuffer(44 + length * numChannels * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV文件头
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * numChannels * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numChannels * 2, true);
+            view.setUint16(32, numChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * numChannels * 2, true);
+            
+            // 写入音频数据
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
         let ws = null;
         let mediaRecorder = null;
         let audioChunks = [];
@@ -205,16 +271,28 @@
         // 开始录音
         recordBtn.addEventListener('click', async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                // 请求音频流，指定采样率
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                
+                // 创建MediaRecorder，指定MIME类型
+                const options = { mimeType: 'audio/webm;codecs=opus' };
+                mediaRecorder = new MediaRecorder(stream, options);
 
                 audioChunks = [];
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
                 };
 
-                mediaRecorder.onstop = () => {
-                    recordedAudio = new Blob(audioChunks, { type: 'audio/wav' });
+                mediaRecorder.onstop = async () => {
+                    // 将WebM转换为WAV格式
+                    recordedAudio = await convertWebMToWAV(new Blob(audioChunks, { type: 'audio/webm' }));
                     playBtn.disabled = false;
                     sendAudioBtn.disabled = false;
                     document.getElementById('recordingStatus').textContent = '录音完成';
@@ -227,7 +305,7 @@
 
             } catch (error) {
                 console.error('录音失败:', error);
-                alert('无法访问麦克风');
+                alert('无法访问麦克风: ' + error.message);
             }
         });
 
@@ -274,7 +352,11 @@
             try {
                 // 转换为ArrayBuffer
                 const arrayBuffer = await recordedAudio.arrayBuffer();
-                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                
+                // 使用标准的base64编码方式
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+                const base64Audio = btoa(binaryString);
 
                 ws.send(JSON.stringify({
                     action: 'audio',

@@ -216,8 +216,17 @@ class ChatProcess:
                 # 读取音频文件内容
                 audio_data = await audio_file.read()
                 
+                # 根据文件扩展名推断音频格式
+                filename = audio_file.filename or ""
+                if filename.lower().endswith('.wav'):
+                    audio_format = "wav"
+                elif filename.lower().endswith('.pcm'):
+                    audio_format = "pcm"
+                else:
+                    audio_format = "auto"  # 让ASR服务自动检测
+                
                 # 执行语音识别
-                recognition_result = asr_service.recognize(audio_data)
+                recognition_result = asr_service.recognize(audio_data, audio_format=audio_format)
                 
                 if not recognition_result.get("success", False):
                     error_msg = recognition_result.get("error", "语音识别失败")
