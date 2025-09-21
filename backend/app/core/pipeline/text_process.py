@@ -145,7 +145,7 @@ class TextProcess:
         return " ".join(text_parts) if text_parts else ""
 
     async def process_message(
-        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None
+        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None, skip_db: bool = False
     ) -> Response:
         model = model or DEFAULT_MODEL
         if model not in self.llm_instances:
@@ -155,13 +155,18 @@ class TextProcess:
             # 处理历史ID
             current_history_id = history_id or message.history_id
             if not current_history_id:
-                try:
-                    # 创建新的历史记录并关联用户ID
-                    current_history_id = await db_message_history.create_history(user_id)
-                    message.history_id = current_history_id
-                except Exception as e:
-                    error_trace = traceback.format_exc()
-                    # 创建临时ID继续聊天
+                if not skip_db:
+                    try:
+                        # 创建新的历史记录并关联用户ID
+                        current_history_id = await db_message_history.create_history(user_id)
+                        message.history_id = current_history_id
+                    except Exception as e:
+                        error_trace = traceback.format_exc()
+                        # 创建临时ID继续聊天
+                        current_history_id = str(uuid.uuid4())
+                        message.history_id = current_history_id
+                else:
+                    # 跳过数据库操作，使用临时ID
                     current_history_id = str(uuid.uuid4())
                     message.history_id = current_history_id
 
@@ -179,33 +184,34 @@ class TextProcess:
                 logger.error(f"计算用户消息token失败: {e}")
 
             # 尝试保存用户消息到历史记录
-            try:
-                await db_message_history.add_message(current_history_id, message)
-            except Exception as e:
-                logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
+            if not skip_db:
+                try:
+                    await db_message_history.add_message(current_history_id, message)
+                except Exception as e:
+                    logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
 
             # 获取历史消息并转换为LLM消息格式
             chat_messages = []
-            history = []
-            try:
-                history = await db_message_history.get_history(current_history_id)
+            if not skip_db:
+                try:
+                    history = await db_message_history.get_history(current_history_id)
 
-                # 消息简化部分
-                # 只取最近的10条消息，避免tokens过多
-                for hist_msg in history[-10:]:
-                    role = "user"
-                    if hist_msg.sender.role == MessageRole.ASSISTANT:
-                        role = "assistant"
-                    elif hist_msg.sender.role == MessageRole.SYSTEM:
-                        role = "system"
+                    # 消息简化部分
+                    # 只取最近的10条消息，避免tokens过多
+                    for hist_msg in history[-10:]:
+                        role = "user"
+                        if hist_msg.sender.role == MessageRole.ASSISTANT:
+                            role = "assistant"
+                        elif hist_msg.sender.role == MessageRole.SYSTEM:
+                            role = "system"
 
-                    # 从消息中提取文本内容
-                    msg_text = self._extract_text_from_message(hist_msg)
+                        # 从消息中提取文本内容
+                        msg_text = self._extract_text_from_message(hist_msg)
 
-                    chat_messages.append(LLMMessage(role=role, content=msg_text))
+                        chat_messages.append(LLMMessage(role=role, content=msg_text))
 
-            except Exception as e:
-                logger.error(f"获取历史记录失败，只使用当前消息: {e}")
+                except Exception as e:
+                    logger.error(f"获取历史记录失败，只使用当前消息: {e}")
 
             # 如果没有历史消息，则只添加当前消息
             if not chat_messages:
@@ -248,7 +254,7 @@ class TextProcess:
             )
 
             # 更新用户消息的输入tokens
-            if actual_input_tokens is not None:
+            if actual_input_tokens is not None and not skip_db:
                 try:
                     # 直接更新消息对象
                     message.input_tokens = actual_input_tokens
@@ -261,10 +267,11 @@ class TextProcess:
                     logger.error(f"更新用户消息token计数失败: {e}")
 
             # 尝试保存AI回复到历史记录
-            try:
-                await db_message_history.add_message(current_history_id, response_message)
-            except Exception as e:
-                logger.error(f"保存AI回复到历史记录失败: {e}")
+            if not skip_db:
+                try:
+                    await db_message_history.add_message(current_history_id, response_message)
+                except Exception as e:
+                    logger.error(f"保存AI回复到历史记录失败: {e}")
 
             return Response(
                 response_message=response_message,
@@ -278,7 +285,7 @@ class TextProcess:
             raise
 
     async def process_message_stream(
-        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None
+        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None, skip_db: bool = False
     ) -> AsyncGenerator[str, None]:
         """流式处理消息并返回生成器"""
         model = model or DEFAULT_MODEL
@@ -289,14 +296,19 @@ class TextProcess:
             # 处理历史ID
             current_history_id = history_id or message.history_id
             if not current_history_id:
-                try:
-                    # 创建新的历史记录并关联用户ID
-                    current_history_id = await db_message_history.create_history(user_id)
-                    message.history_id = current_history_id
-                except Exception as e:
-                    error_trace = traceback.format_exc()
-                    logger.error(f"创建历史记录失败: {e}\n{error_trace}")
-                    # 创建临时ID继续聊天
+                if not skip_db:
+                    try:
+                        # 创建新的历史记录并关联用户ID
+                        current_history_id = await db_message_history.create_history(user_id)
+                        message.history_id = current_history_id
+                    except Exception as e:
+                        error_trace = traceback.format_exc()
+                        logger.error(f"创建历史记录失败: {e}\n{error_trace}")
+                        # 创建临时ID继续聊天
+                        current_history_id = str(uuid.uuid4())
+                        message.history_id = current_history_id
+                else:
+                    # 跳过数据库操作，使用临时ID
                     current_history_id = str(uuid.uuid4())
                     message.history_id = current_history_id
 
@@ -314,31 +326,32 @@ class TextProcess:
                 logger.error(f"计算用户消息token失败: {e}")
 
             # 尝试保存用户消息到历史记录
-            try:
-                await db_message_history.add_message(current_history_id, message)
-            except Exception as e:
-                logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
+            if not skip_db:
+                try:
+                    await db_message_history.add_message(current_history_id, message)
+                except Exception as e:
+                    logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
 
             # 获取历史消息并转换为LLM消息格式
             chat_messages = []
-            history = []
-            try:
-                history = await db_message_history.get_history(current_history_id)
+            if not skip_db:
+                try:
+                    history = await db_message_history.get_history(current_history_id)
 
-                # 只取最近的10条消息，避免tokens过多
-                for hist_msg in history[-10:]:
-                    role = "user"
-                    if hist_msg.sender.role == MessageRole.ASSISTANT:
-                        role = "assistant"
-                    elif hist_msg.sender.role == MessageRole.SYSTEM:
-                        role = "system"
+                    # 只取最近的10条消息，避免tokens过多
+                    for hist_msg in history[-10:]:
+                        role = "user"
+                        if hist_msg.sender.role == MessageRole.ASSISTANT:
+                            role = "assistant"
+                        elif hist_msg.sender.role == MessageRole.SYSTEM:
+                            role = "system"
 
-                    # 从消息中提取文本内容
-                    msg_text = self._extract_text_from_message(hist_msg)
+                        # 从消息中提取文本内容
+                        msg_text = self._extract_text_from_message(hist_msg)
 
-                    chat_messages.append(LLMMessage(role=role, content=msg_text))
-            except Exception as e:
-                logger.error(f"获取历史记录失败，只使用当前消息: {e}")
+                        chat_messages.append(LLMMessage(role=role, content=msg_text))
+                except Exception as e:
+                    logger.error(f"获取历史记录失败，只使用当前消息: {e}")
 
             # 如果没有历史消息，则只添加当前消息
             if not chat_messages:
@@ -387,7 +400,7 @@ class TextProcess:
                 logger.debug(f"响应输出tokens: {output_tokens}")
 
                 # 更新用户消息的输入token
-                if estimated_input_tokens is not None:
+                if estimated_input_tokens is not None and not skip_db:
                     message.input_tokens = estimated_input_tokens
                     await db_message_history.update_message(
                         current_history_id, message.message_id, {"input_tokens": estimated_input_tokens}
@@ -396,21 +409,22 @@ class TextProcess:
                 logger.error(f"计算token失败: {e}")
 
             # 将完整响应消息保存到历史记录
-            try:
-                await db_message_history.add_message(current_history_id, response_message)
+            if not skip_db:
+                try:
+                    await db_message_history.add_message(current_history_id, response_message)
 
-                # 将token信息作为特殊消息返回
-                token_info = json.dumps(
-                    {
-                        "input_tokens": estimated_input_tokens,
-                        "output_tokens": output_tokens,
-                        "message_id": response_message.message_id,
-                        "history_id": current_history_id,  # 添加历史ID到token信息中
-                    }
-                )
-                yield f"__TOKEN_INFO__{token_info}"
-            except Exception as e:
-                logger.error(f"保存AI回复到历史记录失败: {e}")
+                    # 将token信息作为特殊消息返回
+                    token_info = json.dumps(
+                        {
+                            "input_tokens": estimated_input_tokens,
+                            "output_tokens": output_tokens,
+                            "message_id": response_message.message_id,
+                            "history_id": current_history_id,  # 添加历史ID到token信息中
+                        }
+                    )
+                    yield f"__TOKEN_INFO__{token_info}"
+                except Exception as e:
+                    logger.error(f"保存AI回复到历史记录失败: {e}")
 
         except Exception as e:
             error_trace = traceback.format_exc()

@@ -10,7 +10,7 @@ from typing import Optional
 import os
 import traceback
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException, Depends, Form, Query
+from fastapi import APIRouter, HTTPException, Depends, Form, Query, UploadFile, File
 from loguru import logger
 
 from .. import app_config
@@ -56,19 +56,22 @@ async def unified_chat(
     role: MessageRole = Form(MessageRole.USER),
     stream: bool = Form(False),
     tts: bool = Form(False),  # 添加TTS开关
+    audio_file: Optional[UploadFile] = File(None),  # 添加音频文件上传
 ):
     """
-    统一的聊天接口，支持文本聊天、流式输出和语音合成
+    统一的聊天接口，支持文本聊天、流式输出、语音合成和语音输入
     """
-    logger.info(f"接收到聊天请求: stream={stream}, tts={tts}")
+    logger.info(f"接收到聊天请求: stream={stream}, tts={tts}, has_audio={audio_file is not None}")
     try:
         # 使用默认用户ID
         user_id = "anonymous"
         history_id = await db_message_history.get_user_history_id(user_id)
 
+        # 确定是否需要STT
+        stt = audio_file is not None
         
-        # 检查是否是函数调用命令
-        if message:
+        # 检查是否是函数调用命令（仅当有文本消息时）
+        if message and not stt:
             function_call = function_handler.detect_function_call_intent(message)
             if function_call:
                 function_name, result, need_llm = function_handler.handle_function_call(function_call)
@@ -107,9 +110,9 @@ async def unified_chat(
             history_id=history_id,
             role=role,
             stream=stream,
-            stt=False,
+            stt=stt,
             tts=tts,
-            audio_file=None,
+            audio_file=audio_file,
             user_id=user_id,
         )
 

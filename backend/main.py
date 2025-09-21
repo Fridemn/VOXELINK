@@ -34,9 +34,11 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
     app = FastAPI(title="VOXELINK Backend", description="Voxelink Backend with integrated STT/TTS", version="0.1.0")
 
     # 注册 SQLite + Tortoise ORM 服务
+    import os
+    db_path = os.path.join(os.path.dirname(__file__), "db.sqlite3")
     register_tortoise(
         app,
-        db_url="sqlite://db.sqlite3",
+        db_url=f"sqlite://{db_path}",
         modules={"models": ["app.models"]},
         generate_schemas=True,
         add_exception_handlers=True,
@@ -114,6 +116,8 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                     # 直接使用后端统一的配置系统
                     from app.config.default import DEFAULT_CONFIG
                     tts_config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
+                    # 添加characters配置
+                    tts_config["characters"] = DEFAULT_CONFIG["characters"]
                     logger.info("加载TTS配置")
                     return tts_config
                 

@@ -13,6 +13,7 @@ from ..services.asr_service import get_asr_service
 from ..services.vpr_service import get_vpr_service
 
 from ..services.llm_service import get_llm_service
+from ..core.pipeline.chat_process import chat_process
 
 # 项目根目录
 ROOT_DIR = Path(__file__).parent.parent.parent
@@ -366,4 +367,188 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         # 捕获其他异常
         logger.error(f"WebSocket连接异常: {str(e)}", exc_info=True)
+        manager.disconnect(websocket)
+
+
+@router.websocket("/ws/pipeline")
+async def pipeline_websocket_endpoint(websocket: WebSocket):
+    """
+    Pipeline WebSocket接口：语音输入 -> STT -> LLM -> TTS -> 语音输出
+    支持完整的语音对话流程
+    """
+    try:
+        # 建立连接
+        await manager.connect(websocket)
+        logger.info("Pipeline WebSocket连接已建立")
+
+        # 获取服务实例
+        asr_service = get_asr_service()
+
+        # 发送连接成功消息
+        await manager.send_json(websocket, {
+            "success": True,
+            "message": "Pipeline WebSocket连接已建立",
+            "description": "支持语音输入(STT) -> LLM处理 -> 语音输出(TTS)的完整pipeline"
+        })
+
+        # 初始化会话状态
+        session_state = {
+            "user_id": "anonymous",
+            "model": "deepseek/deepseek-v3-0324",  # 默认使用deepseek模型
+            "stream": True,
+            "tts": True,
+            "skip_db": True  # 默认跳过数据库操作
+        }
+
+        while True:
+            # 接收消息
+            data = await websocket.receive_text()
+
+            try:
+                # 解析JSON消息
+                message = json.loads(data)
+                action = message.get("action", "")
+
+                if action == "config":
+                    # 更新配置
+                    config_data = message.get("data", {})
+                    session_state.update({
+                        "model": config_data.get("model", session_state["model"]),
+                        "stream": config_data.get("stream", session_state["stream"]),
+                        "tts": config_data.get("tts", session_state["tts"])
+                    })
+                    logger.info(f"Pipeline配置更新: {session_state}")
+                    await manager.send_json(websocket, {
+                        "success": True,
+                        "message": "配置已更新",
+                        "config": session_state
+                    })
+
+                elif action == "audio":
+                    # 处理音频数据进行完整pipeline
+                    audio_data_base64 = message.get("data", {}).get("audio_data", "")
+                    audio_format = message.get("data", {}).get("format", "wav")
+
+                    if not audio_data_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "未接收到音频数据"
+                        })
+                        continue
+
+                    # 解码音频数据
+                    audio_data = base64.b64decode(audio_data_base64)
+                    logger.info(f"接收到pipeline音频数据，格式: {audio_format}，大小: {len(audio_data)} 字节")
+
+                    # 创建模拟的UploadFile对象
+                    from io import BytesIO
+                    from fastapi import UploadFile
+
+                    # 创建BytesIO对象包装音频数据
+                    audio_buffer = BytesIO(audio_data)
+                    audio_buffer.seek(0)
+
+                    # 创建UploadFile对象
+                    audio_file = UploadFile(
+                        filename="audio_input.wav",
+                        file=audio_buffer
+                    )
+
+                    try:
+                        # 使用chat_process进行完整pipeline处理
+                        response = await chat_process.handle_request(
+                            model=session_state["model"],
+                            message="",  # 文本消息为空，因为我们用音频
+                            history_id=None,  # 会自动创建
+                            role="user",
+                            stream=session_state["stream"],
+                            stt=True,  # 启用STT
+                            tts=session_state["tts"],  # 启用TTS
+                            audio_file=audio_file,
+                            user_id=session_state["user_id"]
+                        )
+
+                        # 如果是流式响应，处理SSE数据
+                        if session_state["stream"] and hasattr(response, 'body_iterator'):
+                            # 流式响应处理
+                            async for chunk in response.body_iterator:
+                                if chunk:
+                                    chunk_str = chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
+                                    # 解析SSE格式的数据
+                                    if chunk_str.startswith('data: '):
+                                        data_content = chunk_str[6:].strip()
+                                        if data_content == '[DONE]':
+                                            break
+                                        try:
+                                            chunk_data = json.loads(data_content)
+                                            # 发送给客户端
+                                            await manager.send_json(websocket, {
+                                                "success": True,
+                                                "type": "stream_chunk",
+                                                "data": chunk_data
+                                            })
+                                        except json.JSONDecodeError:
+                                            continue
+                        elif session_state["stream"] and hasattr(response, '__aiter__'):
+                            # 处理异步生成器
+                            async for chunk in response:
+                                if chunk:
+                                    chunk_str = chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
+                                    # 解析SSE格式的数据
+                                    if chunk_str.startswith('data: '):
+                                        data_content = chunk_str[6:].strip()
+                                        if data_content == '[DONE]':
+                                            break
+                                        try:
+                                            chunk_data = json.loads(data_content)
+                                            # 发送给客户端
+                                            await manager.send_json(websocket, {
+                                                "success": True,
+                                                "type": "stream_chunk",
+                                                "data": chunk_data
+                                            })
+                                        except json.JSONDecodeError:
+                                            continue
+                        else:
+                            # 非流式响应
+                            await manager.send_json(websocket, {
+                                "success": True,
+                                "type": "response",
+                                "data": response
+                            })
+
+                    except Exception as e:
+                        logger.error(f"Pipeline处理失败: {str(e)}", exc_info=True)
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": f"Pipeline处理失败: {str(e)}"
+                        })
+
+                else:
+                    await manager.send_json(websocket, {
+                        "success": False,
+                        "error": f"不支持的动作: {action}"
+                    })
+
+            except json.JSONDecodeError:
+                await manager.send_json(websocket, {
+                    "success": False,
+                    "error": "无效的JSON消息"
+                })
+
+            except Exception as e:
+                logger.error(f"处理Pipeline WebSocket消息异常: {str(e)}", exc_info=True)
+                await manager.send_json(websocket, {
+                    "success": False,
+                    "error": f"服务器内部错误: {str(e)}"
+                })
+
+    except WebSocketDisconnect:
+        # 断开连接
+        manager.disconnect(websocket)
+        logger.info("Pipeline WebSocket连接已断开")
+
+    except Exception as e:
+        # 捕获其他异常
+        logger.error(f"Pipeline WebSocket连接异常: {str(e)}", exc_info=True)
         manager.disconnect(websocket)

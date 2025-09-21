@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOXELINK Pipeline 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.processing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .audio-controls {
+            margin: 20px 0;
+        }
+        .response {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .transcription {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>VOXELINK Pipeline WebSocket 测试</h1>
+
+    <div class="container">
+        <h2>连接状态</h2>
+        <div id="status" class="status disconnected">未连接</div>
+        <button id="connectBtn">连接WebSocket</button>
+        <button id="disconnectBtn" disabled>断开连接</button>
+    </div>
+
+    <div class="container">
+        <h2>配置</h2>
+        <label>LLM模型:</label>
+        <select id="modelSelect">
+            <option value="deepseek/deepseek-v3-0324">DeepSeek v3</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        </select>
+        <br><br>
+        <label><input type="checkbox" id="streamCheck" checked> 流式输出</label>
+        <label><input type="checkbox" id="ttsCheck" checked> 启用TTS</label>
+        <br><br>
+        <button id="updateConfigBtn">更新配置</button>
+    </div>
+
+    <div class="container">
+        <h2>音频输入</h2>
+        <div class="audio-controls">
+            <button id="recordBtn">开始录音</button>
+            <button id="stopBtn" disabled>停止录音</button>
+            <button id="playBtn" disabled>播放录音</button>
+        </div>
+        <div id="recordingStatus"></div>
+        <button id="sendAudioBtn" disabled>发送音频到Pipeline</button>
+    </div>
+
+    <div class="container">
+        <h2>处理结果</h2>
+        <div id="transcription" class="transcription" style="display: none;">
+            <strong>语音识别结果:</strong> <span id="transcriptionText"></span>
+        </div>
+        <div id="response" class="response" style="display: none;">
+            <strong>LLM回复:</strong><br>
+            <span id="responseText"></span>
+        </div>
+        <div id="audioOutput" style="display: none;">
+            <strong>合成音频:</strong><br>
+            <audio id="outputAudio" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedAudio = null;
+
+        // DOM元素
+        const statusDiv = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const playBtn = document.getElementById('playBtn');
+        const sendAudioBtn = document.getElementById('sendAudioBtn');
+        const transcriptionDiv = document.getElementById('transcription');
+        const transcriptionText = document.getElementById('transcriptionText');
+        const responseDiv = document.getElementById('response');
+        const responseText = document.getElementById('responseText');
+        const audioOutputDiv = document.getElementById('audioOutput');
+        const outputAudio = document.getElementById('outputAudio');
+
+        // 连接WebSocket
+        connectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+
+            ws = new WebSocket('ws://localhost:8080/stt/ws/pipeline');
+
+            ws.onopen = () => {
+                statusDiv.textContent = '已连接';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                console.log('WebSocket连接已建立');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                statusDiv.textContent = '未连接';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                console.log('WebSocket连接已关闭');
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+                statusDiv.textContent = '连接错误';
+                statusDiv.className = 'status disconnected';
+            };
+        });
+
+        // 断开连接
+        disconnectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        // 更新配置
+        document.getElementById('updateConfigBtn').addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            const config = {
+                model: document.getElementById('modelSelect').value,
+                stream: document.getElementById('streamCheck').checked,
+                tts: document.getElementById('ttsCheck').checked
+            };
+
+            ws.send(JSON.stringify({
+                action: 'config',
+                data: config
+            }));
+        });
+
+        // 开始录音
+        recordBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                audioChunks = [];
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    recordedAudio = new Blob(audioChunks, { type: 'audio/wav' });
+                    playBtn.disabled = false;
+                    sendAudioBtn.disabled = false;
+                    document.getElementById('recordingStatus').textContent = '录音完成';
+                };
+
+                mediaRecorder.start();
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+                document.getElementById('recordingStatus').textContent = '正在录音...';
+
+            } catch (error) {
+                console.error('录音失败:', error);
+                alert('无法访问麦克风');
+            }
+        });
+
+        // 停止录音
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        });
+
+        // 播放录音
+        playBtn.addEventListener('click', () => {
+            if (recordedAudio) {
+                const audioUrl = URL.createObjectURL(recordedAudio);
+                const audio = new Audio(audioUrl);
+                audio.play();
+            }
+        });
+
+        // 发送音频
+        sendAudioBtn.addEventListener('click', async () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            if (!recordedAudio) {
+                alert('请先录音');
+                return;
+            }
+
+            statusDiv.textContent = '处理中...';
+            statusDiv.className = 'status processing';
+
+            // 清空之前的显示
+            transcriptionDiv.style.display = 'none';
+            responseDiv.style.display = 'none';
+            audioOutputDiv.style.display = 'none';
+            transcriptionText.textContent = '';
+            responseText.textContent = '';
+
+            try {
+                // 转换为ArrayBuffer
+                const arrayBuffer = await recordedAudio.arrayBuffer();
+                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+                ws.send(JSON.stringify({
+                    action: 'audio',
+                    data: {
+                        audio_data: base64Audio,
+                        format: 'wav'
+                    }
+                }));
+
+            } catch (error) {
+                console.error('发送音频失败:', error);
+                alert('发送音频失败');
+                statusDiv.textContent = '发送失败';
+                statusDiv.className = 'status disconnected';
+            }
+        });
+
+        // 处理接收到的消息
+        function handleMessage(data) {
+            console.log('收到消息:', data);
+
+            if (data.success) {
+                if (data.message) {
+                    // 连接或配置消息
+                    console.log(data.message);
+                    return;
+                }
+
+                if (data.type === 'stream_chunk') {
+                    // 流式数据块
+                    const chunkData = data.data;
+
+                    if (chunkData.transcription) {
+                        transcriptionDiv.style.display = 'block';
+                        transcriptionText.textContent = chunkData.transcription;
+                    }
+
+                    if (chunkData.text) {
+                        responseDiv.style.display = 'block';
+                        responseText.textContent += chunkData.text;
+                    }
+
+                    if (chunkData.audio) {
+                        // 收到音频数据
+                        audioOutputDiv.style.display = 'block';
+                        const audioData = atob(chunkData.audio);
+                        const audioBlob = new Blob([new Uint8Array(audioData.length).map((_, i) => audioData.charCodeAt(i))], { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        outputAudio.src = audioUrl;
+
+                        statusDiv.textContent = '处理完成';
+                        statusDiv.className = 'status connected';
+                    }
+                } else if (data.type === 'response') {
+                    // 非流式响应
+                    const responseData = data.data;
+
+                    if (responseData.response_text) {
+                        responseDiv.style.display = 'block';
+                        responseText.textContent = responseData.response_text;
+                    }
+
+                    if (responseData.audio) {
+                        audioOutputDiv.style.display = 'block';
+                        const audioData = atob(responseData.audio);
+                        const audioBlob = new Blob([new Uint8Array(audioData.length).map((_, i) => audioData.charCodeAt(i))], { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        outputAudio.src = audioUrl;
+                    }
+
+                    statusDiv.textContent = '处理完成';
+                    statusDiv.className = 'status connected';
+                }
+            } else {
+                // 错误消息
+                console.error('处理失败:', data.error);
+                statusDiv.textContent = '处理失败: ' + data.error;
+                statusDiv.className = 'status disconnected';
+            }
+        }
+    </script>
+</body>
+</html>
