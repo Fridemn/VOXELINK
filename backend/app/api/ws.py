@@ -481,12 +481,18 @@ async def pipeline_websocket_endpoint(websocket: WebSocket):
                                             break
                                         try:
                                             chunk_data = json.loads(data_content)
-                                            # 发送给客户端
-                                            await manager.send_json(websocket, {
-                                                "success": True,
-                                                "type": "stream_chunk",
-                                                "data": chunk_data
-                                            })
+                                            # 检查是否包含音频数据
+                                            if 'audio' in chunk_data:
+                                                # 发送音频数据作为二进制
+                                                audio_bytes = base64.b64decode(chunk_data['audio'])
+                                                await websocket.send_bytes(audio_bytes)
+                                            else:
+                                                # 发送其他数据作为JSON
+                                                await manager.send_json(websocket, {
+                                                    "success": True,
+                                                    "type": "stream_chunk",
+                                                    "data": chunk_data
+                                                })
                                         except json.JSONDecodeError:
                                             continue
                         elif session_state["stream"] and hasattr(response, '__aiter__'):

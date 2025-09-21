@@ -190,6 +190,24 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let recordedAudio = null;
+        let audioQueue = [];
+        let isPlaying = false;
+
+        // 播放下一个音频的函数
+        function playNextAudio() {
+            if (audioQueue.length > 0 && !isPlaying) {
+                const uint8Array = audioQueue.shift();
+                const audioBlob = new Blob([uint8Array], { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                outputAudio.src = audioUrl;
+                outputAudio.play();
+                isPlaying = true;
+                outputAudio.onended = () => {
+                    isPlaying = false;
+                    playNextAudio();
+                };
+            }
+        }
 
         // DOM元素
         const statusDiv = document.getElementById('status');
@@ -223,8 +241,17 @@
             };
 
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
+                if (typeof event.data === 'string') {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } else {
+                    // Binary audio data
+                    event.data.arrayBuffer().then(buffer => {
+                        const uint8Array = new Uint8Array(buffer);
+                        audioQueue.push(uint8Array);
+                        playNextAudio();
+                    });
+                }
             };
 
             ws.onclose = () => {
@@ -348,6 +375,8 @@
             audioOutputDiv.style.display = 'none';
             transcriptionText.textContent = '';
             responseText.textContent = '';
+            audioQueue = []; // 清空音频队列
+            isPlaying = false; // 重置播放状态
 
             try {
                 // 转换为ArrayBuffer
@@ -400,12 +429,15 @@
                     }
 
                     if (chunkData.audio) {
-                        // 收到音频数据
+                        // 收到音频数据，推入队列
                         audioOutputDiv.style.display = 'block';
                         const audioData = atob(chunkData.audio);
-                        const audioBlob = new Blob([new Uint8Array(audioData.length).map((_, i) => audioData.charCodeAt(i))], { type: 'audio/wav' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        outputAudio.src = audioUrl;
+                        const uint8Array = new Uint8Array(audioData.length);
+                        for (let i = 0; i < audioData.length; i++) {
+                            uint8Array[i] = audioData.charCodeAt(i);
+                        }
+                        audioQueue.push(uint8Array);
+                        playNextAudio();
 
                         statusDiv.textContent = '处理完成';
                         statusDiv.className = 'status connected';
@@ -422,9 +454,12 @@
                     if (responseData.audio) {
                         audioOutputDiv.style.display = 'block';
                         const audioData = atob(responseData.audio);
-                        const audioBlob = new Blob([new Uint8Array(audioData.length).map((_, i) => audioData.charCodeAt(i))], { type: 'audio/wav' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        outputAudio.src = audioUrl;
+                        const uint8Array = new Uint8Array(audioData.length);
+                        for (let i = 0; i < audioData.length; i++) {
+                            uint8Array[i] = audioData.charCodeAt(i);
+                        }
+                        audioQueue.push(uint8Array);
+                        playNextAudio();
                     }
 
                     statusDiv.textContent = '处理完成';
