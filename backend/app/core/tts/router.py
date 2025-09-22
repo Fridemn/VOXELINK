@@ -158,8 +158,17 @@ def set_config(global_config):
     # 如果模型还没有加载，加载默认模型
     if not model_loaded:
         try:
+            # 获取项目根目录
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            
             default_sovits = config["default_models"]["sovits_path"]
             default_gpt = config["default_models"]["gpt_path"]
+            
+            # 如果路径不是绝对路径，则相对于项目根目录解析
+            if not os.path.isabs(default_sovits):
+                default_sovits = os.path.join(project_root, default_sovits)
+            if not os.path.isabs(default_gpt):
+                default_gpt = os.path.join(project_root, default_gpt)
             
             # 检查模型文件是否存在
             if not os.path.exists(default_sovits):
@@ -171,6 +180,11 @@ def set_config(global_config):
             
             logger.info(f"正在加载默认模型 - SoVITS: {default_sovits}, GPT: {default_gpt}")
             load_models(default_gpt, default_sovits)
+            
+            # 重新加载SoVITS模型以确保正确的模型版本检测
+            from core_inference import change_sovits_weights
+            change_sovits_weights(default_sovits)
+            
             current_sovits_path = default_sovits
             current_gpt_path = default_gpt
             model_loaded = True
