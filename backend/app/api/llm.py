@@ -17,8 +17,6 @@ from .. import app_config
 from ..core.llm.message import MessageRole
 from ..core.db.db_history import db_message_history
 from ..core.pipeline.chat_process import chat_process
-from ..core.pipeline.function_process import function_process
-from ..core.funcall.function_handler import function_handler
 
 
 api_llm = APIRouter()
@@ -65,39 +63,6 @@ async def unified_chat(
         # 确定是否需要STT
         stt = audio_file is not None
         
-        # 检查是否是函数调用命令（仅当有文本消息时）
-        if message and not stt:
-            function_call = function_handler.detect_function_call_intent(message)
-            if function_call:
-                function_name, result, need_llm = function_handler.handle_function_call(function_call)
-
-                function_message = function_handler.create_function_message(history_id, function_name, result)
-
-                await db_message_history.add_message(history_id, function_message)
-
-                need_llm = function_call.get("need_llm", need_llm)
-
-                if need_llm:
-                    return await function_process.handle_function_result(
-                        model=model,
-                        function_name=function_name,
-                        result=result,
-                        history_id=history_id,
-                        stream=stream,
-                        tts=tts, # 传递tts参数
-                        user_id=user_id,
-                        function_message=function_message,
-                    )
-                else:
-                    if stream:
-                        return function_process.create_function_stream_response(function_name, result)
-                    else:
-                        return {
-                            "success": True,
-                            "function_call": {"name": function_name, "result": result},
-                            "message_id": function_message.message_id,
-                        }
-
         # 使用聊天流水线处理请求
         return await chat_process.handle_request(
             model=model,
