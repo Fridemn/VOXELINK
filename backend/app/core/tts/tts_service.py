@@ -39,8 +39,8 @@ def load_tts_config():
         return config
 
     try:
-        from ...config.app_config import get_app_config
-        app_config = get_app_config()
+        from ...config.app_config import AppConfig
+        app_config = AppConfig()
         
         # 从统一配置中获取TTS相关配置
         tts_config = app_config.get("tts_config", {})
@@ -92,7 +92,7 @@ def load_tts_config():
         return config
         
     # 如果都没有，抛出错误
-    raise RuntimeError(f"无法加载TTS配置: {e}")
+    raise RuntimeError("无法加载TTS配置: 未找到有效的配置源")
 
 
 async def text_to_speech_stream(text_chunk: str, character: str = None, mood: str = None):

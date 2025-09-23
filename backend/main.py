@@ -72,6 +72,14 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
     app.include_router(api_system, prefix="/system", tags=["系统相关接口"])
     app.include_router(api_llm, prefix="/llm", tags=["大语言模型相关接口"])
 
+    # 注册实时聊天WebSocket路由（总是可用）
+    try:
+        from app.api.ws import router as ws_router
+        app.include_router(ws_router, prefix="", tags=["WebSocket"])
+        logger.info("WebSocket路由已注册")
+    except Exception as e:
+        logger.warning(f"无法注册WebSocket路由: {e}")
+
     # 条件注册STT路由
     if enable_stt:
         try:
