@@ -4,29 +4,12 @@ GPT-SoVITS FastAPI 应用核心模块
 包含应用初始化、配置加载和模型设置
 """
 
-import json
 import logging
 import os
 import sys
-import traceback
 import warnings
-from typing import Optional, List, Union, Dict
-import tempfile
-import base64
-import io
-import time
-import asyncio
-from pathlib import Path
-
-import torch
-import torchaudio
-import librosa
-import numpy as np
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-import uvicorn
 
 # 导入我们的核心推理模块
 tts_dir = os.path.dirname(os.path.abspath(__file__))

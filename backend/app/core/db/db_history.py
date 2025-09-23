@@ -53,7 +53,7 @@ class DBMessageHistory:
             # 出现异常时创建新历史记录
             return await self.create_history(user_id)
 
-    async def create_history(self, user_id: Optional[str] = None, title: str = "对话历史") -> str:
+    async def create_history(self, user_id: Optional[str] = None) -> str:
         """创建新的历史记录，一个用户只有一个历史记录"""
         # 检查连接
         if not await self._ensure_connection():
@@ -66,7 +66,7 @@ class DBMessageHistory:
                 return str(existing_history.history_id)
 
             # 创建新的历史记录
-            history = await ChatHistory.create(title=title)
+            history = await ChatHistory.create()
             return str(history.history_id)
         except Exception as e:
             logger.error(f"创建历史记录失败: {e}")
@@ -387,7 +387,6 @@ class DBMessageHistory:
 
             return {
                 "history_id": str(history.history_id),
-                "title": history.title,
                 "create_time": history.create_time.isoformat(),
                 "update_time": history.update_time.isoformat(),
                 "message_count": message_count,
@@ -395,22 +394,6 @@ class DBMessageHistory:
         except Exception as e:
             logger.error(f"获取用户历史记录失败: {e}")
             return None
-
-    async def update_history_title(self, history_id: str, title: str) -> bool:
-        """更新历史记录的标题"""
-        # 确保连接已初始化
-        await self._ensure_connection()
-
-        try:
-            history = await ChatHistory.filter(history_id=history_id).first()
-            if history:
-                history.title = title
-                await history.save()
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"更新历史记录标题失败: {e}")
-            return False
 
     async def update_message(self, history_id: str, message_id: str, updates: dict) -> bool:
         """更新历史记录中的特定消息"""
