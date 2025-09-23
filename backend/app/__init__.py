@@ -22,13 +22,3 @@ __all__ = [
     "app_config",
     "get_app_config",
 ]
-from .config.app_config import AppConfig
-from .utils.logger import setup_logger
-
-setup_logger()
-
-app_config = AppConfig()
-
-__all__ = [
-    "app_config",
-]
