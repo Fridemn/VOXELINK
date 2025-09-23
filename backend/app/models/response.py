@@ -1,5 +1,5 @@
 """
-app/schemas/response.py
+app/models/response.py
 通用响应数据模型。
 - 定义API统一响应结构。
 - 供各API接口返回数据时调用。

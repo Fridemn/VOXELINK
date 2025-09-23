@@ -12,7 +12,7 @@ Usage:
 from . import app
 
 # Re-export app's components with short aliases
-from .app import core, models, utils, config, api, schemas
+from .app import core, models, utils, config, api
 # Note: services import removed to avoid circular import
 from .app.core import pipeline, db, funcall, llm, tts
 from .app.core.funcall.tool_functions import get_available_functions, execute_function, get_function_need_llm, find_function_by_command
@@ -32,11 +32,11 @@ from .app.api.llm import api_llm
 from .app.api.asr import router as asr
 from .app.api.vpr import router as vpr
 from .app.api.ws import router as ws
-from .app.schemas import response
+from .app.models import response
 
 __all__ = [
     'app',
-    'core', 'models', 'services', 'utils', 'config', 'api', 'schemas',
+    'core', 'models', 'services', 'utils', 'config', 'api',
     'pipeline', 'db', 'funcall', 'llm', 'tts','set_tts_config', 'db_message_history',
     'BaseFunction', 'CurrentDateFunction', 'DateDifferenceFunction', 'TestFunction',
     'tool_functions',
