@@ -50,10 +50,6 @@ class ServerPage(QWidget):
         host_layout.addWidget(self.port_input)
         server_layout.addLayout(host_layout)
 
-        # 重载模式
-        self.reload_checkbox = QCheckBox("启用自动重载 (开发模式)")
-        server_layout.addWidget(self.reload_checkbox)
-
         layout.addWidget(server_group)
 
         # 控制按钮
@@ -92,7 +88,6 @@ class ServerPage(QWidget):
         port = self.port_input.text()
         enable_stt = self.stt_checkbox.isChecked()
         enable_tts = self.tts_checkbox.isChecked()
-        reload_mode = self.reload_checkbox.isChecked()
 
         try:
             port_int = int(port)
@@ -104,7 +99,6 @@ class ServerPage(QWidget):
         self.output_text.append("🚀 启动 VOXELINK 后端服务...")
         self.output_text.append(f"📍 主机: {host}")
         self.output_text.append(f"🔌 端口: {port_int}")
-        self.output_text.append(f"🔄 重载: {'启用' if reload_mode else '禁用'}")
 
         services = ["后端"]
         if enable_stt:
@@ -113,7 +107,7 @@ class ServerPage(QWidget):
             services.append("TTS")
         self.output_text.append(f"📦 启用的服务: {', '.join(services)}")
 
-        self.server_thread = ServerThread(host, port_int, enable_stt, enable_tts, reload_mode)
+        self.server_thread = ServerThread(host, port_int, enable_stt, enable_tts)
         self.server_thread.output_signal.connect(self.append_output)
         self.server_thread.finished_signal.connect(self.on_server_finished)
         self.server_thread.start()

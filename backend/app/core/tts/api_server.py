@@ -114,7 +114,6 @@ if __name__ == "__main__":
     parser.add_argument("--host", default=None, help="Host to bind to")
     parser.add_argument("--port", type=int, default=None, help="Port to bind to")
     parser.add_argument("--workers", type=int, default=1, help="Number of worker processes")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     
     args = parser.parse_args()
     
@@ -133,6 +132,5 @@ if __name__ == "__main__":
         host=host,
         port=port,
         workers=args.workers,
-        reload=args.reload,
         log_level=log_level
     )

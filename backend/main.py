@@ -23,7 +23,6 @@ parser.add_argument("--enable-stt", action="store_true", help="Enable STT (Speec
 parser.add_argument("--enable-tts", action="store_true", help="Enable TTS (Text-to-Speech) service")
 parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
 parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
-parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
 
 def create_app(enable_stt: bool = False, enable_tts: bool = False):
     """创建FastAPI应用"""
@@ -180,5 +179,5 @@ if __name__ == "__main__":
         logger.info("STT服务已启用")
     if args.enable_tts:
         logger.info("TTS服务已启用")
-    
-    uvicorn.run(app, host=args.host, port=args.port, reload=args.reload)
+
+    uvicorn.run(app, host=args.host, port=args.port)

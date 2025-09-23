@@ -94,7 +94,6 @@ class ASRService:
             self.vad_model, utils = torch.hub.load(
                 repo_or_dir='snakers4/silero-vad',
                 model='silero_vad',
-                force_reload=False,
                 onnx=False
             )
             self.get_speech_timestamps = utils[0]

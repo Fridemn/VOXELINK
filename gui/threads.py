@@ -43,13 +43,12 @@ class ServerThread(QThread):
     output_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, host, port, enable_stt, enable_tts, reload_mode):
+    def __init__(self, host, port, enable_stt, enable_tts):
         super().__init__()
         self.host = host
         self.port = port
         self.enable_stt = enable_stt
         self.enable_tts = enable_tts
-        self.reload_mode = reload_mode
         self.process = None
 
     def run(self):
@@ -61,8 +60,6 @@ class ServerThread(QThread):
             if self.enable_tts:
                 cmd.append("--enable-tts")
             cmd.extend(["--host", self.host, "--port", str(self.port)])
-            if self.reload_mode:
-                cmd.append("--reload")
 
             self.output_signal.emit(f"🚀 启动命令: {' '.join(cmd)}")
             self.output_signal.emit("-" * 50)

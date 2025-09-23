@@ -16,7 +16,6 @@ VOXELINK 统一启动脚本
   --enable-tts    启用语音合成 (TTS) 服务
   --host HOST     绑定主机 (默认: 0.0.0.0)
   --port PORT     绑定端口 (默认: 8080)
-  --reload        启用自动重载 (开发模式)
   --gui           启动图形用户界面 (GUI)
   --help          显示帮助信息
 """
@@ -56,7 +55,6 @@ if __name__ == "__main__":
   python start.py --enable-tts             # 启动后端 + TTS服务
   python start.py --enable-stt --enable-tts # 启动所有服务
   python start.py --port 9000              # 指定端口启动
-  python start.py --reload                 # 开发模式启动
   python start.py --gui                    # 启动 GUI 界面
 
 服务说明:
@@ -91,11 +89,6 @@ API文档:
         help="绑定端口 (默认: 8080)"
     )
     parser.add_argument(
-        "--reload",
-        action="store_true",
-        help="启用自动重载 (开发模式)"
-    )
-    parser.add_argument(
         "--gui",
         action="store_true",
         help="启动图形用户界面 (GUI)"
@@ -117,7 +110,6 @@ API文档:
     print("🚀 启动 VOXELINK 后端服务...")
     print(f"📍 主机: {args.host}")
     print(f"🔌 端口: {args.port}")
-    print(f"🔄 重载: {'启用' if args.reload else '禁用'}")
 
     # 显示启用的服务
     services = ["后端"]
@@ -138,6 +130,5 @@ API文档:
         app,
         host=args.host,
         port=args.port,
-        reload=args.reload,
         log_level="info"
     )
