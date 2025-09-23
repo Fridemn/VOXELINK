@@ -336,6 +336,10 @@ class TextProcess:
             logger.error(f"处理消息时发生错误: {e}\n{error_trace}")
             yield f"错误: {str(e)}"
 
+text_process = None
 
-# 全局聊天管道实例
-text_process = TextProcess()
+def get_text_process():
+    global text_process
+    if text_process is None:
+        text_process = TextProcess()
+    return text_process

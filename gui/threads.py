@@ -53,6 +53,16 @@ class ServerThread(QThread):
 
     def run(self):
         try:
+            # 添加Python路径
+            backend_dir = Path(__file__).parent.parent / "backend"
+            app_dir = backend_dir / "app"
+            pythonpath = os.environ.get('PYTHONPATH', '')
+            if pythonpath:
+                pythonpath = f"{str(app_dir)};{str(backend_dir)};{pythonpath}"
+            else:
+                pythonpath = f"{str(app_dir)};{str(backend_dir)}"
+            os.environ['PYTHONPATH'] = pythonpath
+
             # 构建命令
             cmd = [sys.executable, str(Path(__file__).parent.parent / "start.py")]
             if self.enable_stt:
@@ -87,7 +97,7 @@ class ServerThread(QThread):
             if output:
                 self.output_signal.emit(output.strip())
             if error:
-                self.output_signal.emit(f"错误: {error.strip()}")
+                self.output_signal.emit(f"{error.strip()}")
 
     def stop(self):
         if self.process and self.process.state() == QProcess.ProcessState.Running:

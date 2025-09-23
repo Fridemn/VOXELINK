@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from ... import app_config
-from .text_process import text_process
+from .text_process import get_text_process
 from ..tts.tts_service import text_to_speech_stream
 from ..llm.message import Message, Response, MessageRole
 import asyncio
@@ -227,7 +227,7 @@ class ChatProcess:
                 tts_task = asyncio.create_task(process_tts_queue(tts_queue, yield_queue))
 
             async def collect_text():
-                async for chunk in text_process.process_message_stream(
+                async for chunk in get_text_process().process_message_stream(
                     model, input_message, current_history_id, user_id, skip_db=True
                 ):
                     await text_queue.put(chunk)
@@ -361,7 +361,7 @@ class ChatProcess:
         """
         try:
             # 使用文本处理流水线处理消息
-            response = await text_process.process_message(model, input_message, history_id, user_id, skip_db=True)
+            response = await get_text_process().process_message(model, input_message, history_id, user_id, skip_db=True)
 
             # 如果需要TTS处理
             if tts and response and hasattr(response, "response_text"):
