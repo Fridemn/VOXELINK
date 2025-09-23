@@ -18,7 +18,6 @@ from ..core.llm.message import MessageRole
 from ..core.db.db_history import db_message_history
 from ..core.pipeline.chat_process import chat_process
 from ..core.pipeline.function_process import function_process
-from ..core.pipeline.summarize_process import summarize_process
 from ..core.funcall.function_handler import function_handler
 
 
@@ -33,10 +32,6 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     message: str
     role: MessageRole = MessageRole.USER
-
-
-class HistoryUpdateRequest(BaseModel):
-    title: str
 
 
 class UnifiedChatRequest(BaseModel):
@@ -220,131 +215,8 @@ async def clear_history():
         raise HTTPException(status_code=500, detail=f"清空历史记录失败: {str(e)}")
 
 
-# ------------------------------
-# 历史记录更新部分
-# ------------------------------
 
 
-@api_llm.put("/history/title")
-async def update_history_title(request: HistoryUpdateRequest):
-    """更新历史记录标题"""
-    try:
-        user_id = "anonymous"
-
-        # 先获取用户的历史ID
-        history = await db_message_history.get_user_history(user_id)
-        if not history:
-            raise HTTPException(status_code=404, detail="历史记录不存在")
-
-        history_id = history["history_id"]
-        success = await db_message_history.update_history_title(history_id, request.title)
-        if not success:
-            raise HTTPException(status_code=404, detail="更新历史记录标题失败")
-        return {"success": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"更新历史记录标题失败: {str(e)}\n{error_trace}")
-        raise HTTPException(status_code=500, detail=f"更新历史记录标题失败: {str(e)}")
-
-
-@api_llm.post("/history/summarize")
-async def summarize_history_title():
-    """自动总结历史记录内容并更新标题"""
-    try:
-        user_id = "anonymous"
-
-        # 先获取用户的历史ID
-        history = await db_message_history.get_user_history(user_id)
-        if not history:
-            raise HTTPException(status_code=404, detail="历史记录不存在")
-
-        history_id = history["history_id"]
-
-        # 使用摘要流水线处理请求
-        result = await summarize_process.generate_history_title(history_id=history_id, user_id=user_id)
-
-        # 检查处理结果，确保没有残留临时的history_id
-        if result.get("temporary_history_id"):
-            # 删除临时创建的历史记录
-            temp_history_id = result.pop("temporary_history_id")
-            await db_message_history.completely_delete_history(temp_history_id)
-            logger.info(f"清理了临时历史记录: {temp_history_id}")
-
-        # 清理孤立和无用户关联的历史记录
-        await cleanup_all_orphaned_histories(user_id, history_id)
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"总结历史记录标题失败: {str(e)}\n{error_trace}")
-        raise HTTPException(status_code=500, detail=f"总结历史记录标题失败: {str(e)}")
-
-
-# 重写清理函数，增加对无用户关联记录的清理
-async def cleanup_all_orphaned_histories(user_id: str, current_history_id: str):
-    """清理所有孤立的历史记录，包括与用户关联及无关联的记录"""
-    from app.models.chat import ChatHistory
-
-    try:
-        # 清理第一部分：该用户除了当前历史记录外的所有其他历史记录
-        user_orphaned_histories = await ChatHistory.filter(user_id=user_id).exclude(history_id=current_history_id).all()
-
-        # 删除找到的所有用户关联的孤立历史记录
-        for history in user_orphaned_histories:
-            orphan_id = str(history.history_id)
-            await db_message_history.completely_delete_history(orphan_id)
-            logger.info(f"清理了用户 {user_id} 的孤立历史记录: {orphan_id}")
-
-        # 清理第二部分：所有无用户关联的历史记录（user_id为NULL）
-        null_user_histories = await ChatHistory.filter(user_id=None).all()
-
-        # 删除找到的所有无用户关联的历史记录
-        for history in null_user_histories:
-            orphan_id = str(history.history_id)
-            await db_message_history.completely_delete_history(orphan_id)
-            logger.info(f"清理了无用户关联的历史记录: {orphan_id}")
-
-        total_cleaned = len(user_orphaned_histories) + len(null_user_histories)
-        if total_cleaned > 0:
-            logger.info(f"共清理了 {total_cleaned} 条孤立历史记录")
-
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"清理孤立历史记录时出错: {str(e)}\n{error_trace}")
-
-
-# 添加定期清理接口
-@api_llm.post("/admin/cleanup-histories")
-async def admin_cleanup_histories():
-    """清理所有孤立的历史记录"""
-    try:
-        from app.models.chat import ChatHistory
-
-        # 清理所有无用户关联的历史记录
-        null_user_histories = await ChatHistory.filter(user_id=None).all()
-
-        # 删除找到的所有无用户关联的历史记录
-        for history in null_user_histories:
-            orphan_id = str(history.history_id)
-            await db_message_history.completely_delete_history(orphan_id)
-
-        return {
-            "success": True,
-            "cleaned_count": len(null_user_histories),
-            "message": f"成功清理了 {len(null_user_histories)} 条无用户关联的历史记录",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"清理历史记录失败: {str(e)}\n{error_trace}")
-        raise HTTPException(status_code=500, detail=f"清理历史记录失败: {str(e)}")
 
 
 @api_llm.get("/available-models")
