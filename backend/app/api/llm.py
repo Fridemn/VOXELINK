@@ -58,7 +58,6 @@ async def unified_chat(
     try:
         # 使用默认用户ID
         user_id = "anonymous"
-        history_id = await db_message_history.get_user_history_id(user_id)
 
         # 确定是否需要STT
         stt = audio_file is not None
@@ -67,7 +66,7 @@ async def unified_chat(
         return await chat_process.handle_request(
             model=model,
             message=message,
-            history_id=history_id,
+            history_id=None,  # 不再使用history_id
             role=role,
             stream=stream,
             stt=stt,
@@ -93,15 +92,11 @@ async def unified_chat(
 async def get_user_history():
     """获取历史记录"""
     try:
-        user_id = "anonymous"
-        history = await db_message_history.get_user_history(user_id)
-
-        if not history:
-            # 如果用户没有历史记录，创建一个新的
-            history_id = await db_message_history.create_history(user_id)
-            return {"history_id": history_id}
-
-        return history
+        message_count = await db_message_history.get_message_count()
+        return {
+            "message_count": message_count,
+            "context_window": db_message_history.context_window
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取历史记录失败: {str(e)}")
 
@@ -110,34 +105,23 @@ async def get_user_history():
 async def get_history_messages():
     """获取历史消息"""
     try:
-        user_id = "anonymous"
-
-        # 先获取用户的历史ID
-        history = await db_message_history.get_user_history(user_id)
-        if not history:
-            return {"history_id": "", "messages": [], "count": 0}
-
-        history_id = history["history_id"]
-        logger.info(f"请求用户 {user_id} 的历史记录: {history_id}")
-
-        # 使用db_message_history获取格式化消息
-        messages = await db_message_history.get_history(history_id)
+        # 获取历史消息
+        messages = await db_message_history.get_history()
 
         # 返回消息列表，处理可能的序列化错误
         message_dicts = []
         for msg in messages:
             try:
                 message_dict = msg.dict()
-                # 确保history_id设置正确
-                if not message_dict.get("history_id"):
-                    message_dict["history_id"] = history_id
+                # 确保message_id设置正确
+                if not message_dict.get("message_id"):
+                    message_dict["message_id"] = msg.message_id
                 message_dicts.append(message_dict)
             except Exception as e:
                 logger.error(f"消息序列化失败: {str(e)}")
                 # 创建简化版消息
                 simple_msg = {
                     "message_id": msg.message_id,
-                    "history_id": history_id,
                     "message_str": msg.message_str,
                     "timestamp": msg.timestamp,
                     "sender": {"role": "unknown", "nickname": None},
@@ -153,7 +137,7 @@ async def get_history_messages():
 
                 message_dicts.append(simple_msg)
 
-        return {"history_id": history_id, "messages": message_dicts, "count": len(message_dicts)}
+        return {"messages": message_dicts, "count": len(message_dicts)}
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error(f"获取历史消息失败: {str(e)}\n{error_trace}")
@@ -164,15 +148,7 @@ async def get_history_messages():
 async def clear_history():
     """清空历史记录"""
     try:
-        user_id = "anonymous"
-
-        # 先获取用户的历史ID
-        history = await db_message_history.get_user_history(user_id)
-        if not history:
-            return {"success": True}
-
-        history_id = history["history_id"]
-        success = await db_message_history.delete_history(history_id)
+        success = await db_message_history.clear_history()
         return {"success": success}
     except Exception as e:
         error_trace = traceback.format_exc()

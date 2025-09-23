@@ -151,31 +151,13 @@ class TextProcess:
             raise ValueError(f"未知的模型: {model}")
 
         try:
-            # 处理历史ID
-            current_history_id = history_id or message.history_id
-            if not current_history_id:
-                if not skip_db:
-                    try:
-                        # 创建新的历史记录并关联用户ID
-                        current_history_id = await db_message_history.create_history(user_id)
-                        message.history_id = current_history_id
-                    except Exception as e:
-                        error_trace = traceback.format_exc()
-                        # 创建临时ID继续聊天
-                        current_history_id = str(uuid.uuid4())
-                        message.history_id = current_history_id
-                else:
-                    # 跳过数据库操作，使用临时ID
-                    current_history_id = str(uuid.uuid4())
-                    message.history_id = current_history_id
-
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
 
             # 尝试保存用户消息到历史记录
             if not skip_db:
                 try:
-                    await db_message_history.add_message(current_history_id, message)
+                    await db_message_history.add_message(message)
                 except Exception as e:
                     logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
 
@@ -183,11 +165,9 @@ class TextProcess:
             chat_messages = []
             if not skip_db:
                 try:
-                    history = await db_message_history.get_history(current_history_id)
+                    history = await db_message_history.get_history()
 
-                    # 消息简化部分
-                    # 只取最近的10条消息，避免tokens过多
-                    for hist_msg in history[-10:]:
+                    for hist_msg in history:
                         role = "user"
                         if hist_msg.sender.role == MessageRole.ASSISTANT:
                             role = "assistant"
@@ -202,7 +182,6 @@ class TextProcess:
                 except Exception as e:
                     logger.error(f"获取历史记录失败，只使用当前消息: {e}")
 
-            # 如果没有历史消息，则只添加当前消息
             if not chat_messages:
                 chat_messages = [LLMMessage(role="user", content=message_text)]
             
@@ -214,7 +193,6 @@ class TextProcess:
             raw_response = await llm.chat_completion(chat_messages)
 
             response_message = Message(
-                history_id=current_history_id,
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
                 components=[MessageComponent(type=MessageType.TEXT, content=raw_response.text)],
                 message_str=raw_response.text,
@@ -223,7 +201,7 @@ class TextProcess:
             # 尝试保存AI回复到历史记录
             if not skip_db:
                 try:
-                    await db_message_history.add_message(current_history_id, response_message)
+                    await db_message_history.add_message(response_message)
                 except Exception as e:
                     logger.error(f"保存AI回复到历史记录失败: {e}")
 
@@ -245,32 +223,13 @@ class TextProcess:
             raise ValueError(f"未知的模型: {model}")
 
         try:
-            # 处理历史ID
-            current_history_id = history_id or message.history_id
-            if not current_history_id:
-                if not skip_db:
-                    try:
-                        # 创建新的历史记录并关联用户ID
-                        current_history_id = await db_message_history.create_history(user_id)
-                        message.history_id = current_history_id
-                    except Exception as e:
-                        error_trace = traceback.format_exc()
-                        logger.error(f"创建历史记录失败: {e}\n{error_trace}")
-                        # 创建临时ID继续聊天
-                        current_history_id = str(uuid.uuid4())
-                        message.history_id = current_history_id
-                else:
-                    # 跳过数据库操作，使用临时ID
-                    current_history_id = str(uuid.uuid4())
-                    message.history_id = current_history_id
-
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
 
             # 尝试保存用户消息到历史记录
             if not skip_db:
                 try:
-                    await db_message_history.add_message(current_history_id, message)
+                    await db_message_history.add_message(message)
                 except Exception as e:
                     logger.error(f"保存用户消息到历史记录失败，但继续处理: {e}")
 
@@ -278,10 +237,10 @@ class TextProcess:
             chat_messages = []
             if not skip_db:
                 try:
-                    history = await db_message_history.get_history(current_history_id)
+                    history = await db_message_history.get_history()
 
-                    # 只取最近的10条消息，避免tokens过多
-                    for hist_msg in history[-10:]:
+                    # 只取最近的消息（已在db层控制上下文窗口）
+                    for hist_msg in history:
                         role = "user"
                         if hist_msg.sender.role == MessageRole.ASSISTANT:
                             role = "assistant"
@@ -310,7 +269,6 @@ class TextProcess:
 
             # 创建AI响应消息对象
             response_message = Message(
-                history_id=current_history_id,
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
                 components=[MessageComponent(type=MessageType.TEXT, content="")],  # 初始为空，稍后填充
                 message_str="",  # 初始为空，稍后填充
@@ -327,7 +285,7 @@ class TextProcess:
             # 将完整响应消息保存到历史记录
             if not skip_db:
                 try:
-                    await db_message_history.add_message(current_history_id, response_message)
+                    await db_message_history.add_message(response_message)
                 except Exception as e:
                     logger.error(f"保存AI回复到历史记录失败: {e}")
 

@@ -69,7 +69,7 @@ class Message(BaseModel):
     """统一的消息格式"""
 
     message_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    history_id: str
+    history_id: Optional[str] = None  # 历史ID（单用户模式下可选）
     sender: MessageSender
     components: List[MessageComponent]
     message_str: str
@@ -77,7 +77,7 @@ class Message(BaseModel):
     raw_message: Optional[Any] = None
 
     @classmethod
-    def from_text(cls, text: str, history_id: str, role: MessageRole = MessageRole.USER):
+    def from_text(cls, text: str, history_id: Optional[str] = None, role: MessageRole = MessageRole.USER):
         return cls(
             history_id=history_id,
             sender=MessageSender(role=role),
@@ -89,7 +89,7 @@ class Message(BaseModel):
     def from_audio(
         cls,
         audio_url: str,
-        history_id: str,
+        history_id: Optional[str] = None,
         role: MessageRole = MessageRole.USER,
         duration: Optional[float] = None,
         format: Optional[str] = None,
@@ -103,7 +103,7 @@ class Message(BaseModel):
         )
 
     @classmethod
-    def from_components(cls, components: List[MessageComponent], history_id: str, role: MessageRole = MessageRole.USER):
+    def from_components(cls, components: List[MessageComponent], history_id: Optional[str] = None, role: MessageRole = MessageRole.USER):
         """从多个组件创建混合类型消息"""
         message_str = " ".join(comp.to_display_text() for comp in components)
         return cls(

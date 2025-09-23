@@ -97,8 +97,8 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
             "model": "deepseek/deepseek-v3-0324",  # 默认使用deepseek模型
             "stream": True,
             "tts": True,
-            "skip_db": True,  # 默认跳过数据库操作
-            "check_voiceprint": False,  # 默认不检查声纹
+            "skip_db": False,
+            "check_voiceprint": False,
             "only_register_user": False,
             "identify_unregistered": True
         }
@@ -188,11 +188,10 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                 file=audio_buffer
                             )
 
-                            # 调用pipeline处理 - 使用STT结果作为文本消息
                             response = await chat_process.handle_request(
                                 model=session_state["model"],
                                 message=recognized_text,  # 使用STT识别的文本
-                                history_id=None,  # 会自动创建
+                                history_id=None,
                                 role="user",
                                 stream=session_state["stream"],
                                 stt=False,  # STT已经完成，不需要再做

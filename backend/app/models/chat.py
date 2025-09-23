@@ -1,7 +1,7 @@
 """
 app/models/chat.py
-聊天消息与历史数据模型。
-- 定义消息类型、角色、历史记录ORM模型。
+聊天消息数据模型。
+- 定义消息类型、角色、消息ORM模型。
 - 供数据库与业务逻辑统一调用。
 """
 
@@ -27,23 +27,10 @@ class MessageRole(str, Enum):
     SYSTEM = "system"
 
 
-class ChatHistory(Model):
-    """聊天历史记录表，仅包含对话的基本信息"""
-
-    history_id = fields.UUIDField(pk=True, default=uuid.uuid4, index=True)
-    create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
-    update_time = fields.DatetimeField(auto_now=True, description="最后更新时间")
-
-    class Meta:
-        table = "chat_history"
-        app = "models"
-
-
 class ChatMessage(Model):
-    """聊天消息表，存储具体消息内容"""
+    """聊天消息表，存储所有消息（单用户模式）"""
 
     message_id = fields.UUIDField(pk=True, default=uuid.uuid4, index=True)
-    history = fields.ForeignKeyField("models.ChatHistory", related_name="messages")
     role = fields.CharField(max_length=20, description="消息角色")
     content = fields.TextField(description="消息内容")
     components = fields.JSONField(default=list, description="消息组件JSON")
@@ -53,6 +40,8 @@ class ChatMessage(Model):
     class Meta:
         table = "chat_message"
         app = "models"
+        # 按时间戳排序，最新的消息在前面
+        ordering = ["-timestamp"]
 
     @property
     def message_components(self) -> List[Dict[str, Any]]:
@@ -93,11 +82,10 @@ class ChatMessage(Model):
         return [comp for comp in self.message_components if comp["type"] == component_type]
 
     @classmethod
-    async def from_llm_message(cls, llm_message, history_id):
+    async def from_llm_message(cls, llm_message):
         """从LLMMessage创建ChatMessage"""
         return await cls.create(
             message_id=uuid.UUID(llm_message.message_id),
-            history_id=history_id,
             role=llm_message.sender.role,
             content=llm_message.message_str,
             components=[

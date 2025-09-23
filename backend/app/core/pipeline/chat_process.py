@@ -228,7 +228,7 @@ class ChatProcess:
 
             async def collect_text():
                 async for chunk in get_text_process().process_message_stream(
-                    model, input_message, current_history_id, user_id, skip_db=True
+                    model, input_message, None, user_id, skip_db=False
                 ):
                     await text_queue.put(chunk)
                 await text_queue.put(None)
@@ -352,7 +352,7 @@ class ChatProcess:
         Args:
             model: LLM模型名称
             input_message: 输入消息
-            history_id: 对话历史ID
+            history_id: 历史ID（已废弃）
             user_id: 用户ID
             tts: 是否需要文本转语音
 
@@ -361,7 +361,7 @@ class ChatProcess:
         """
         try:
             # 使用文本处理流水线处理消息
-            response = await get_text_process().process_message(model, input_message, history_id, user_id, skip_db=True)
+            response = await get_text_process().process_message(model, input_message, None, user_id, skip_db=False)
 
             # 如果需要TTS处理
             if tts and response and hasattr(response, "response_text"):

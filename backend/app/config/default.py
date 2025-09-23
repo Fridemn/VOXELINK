@@ -93,6 +93,7 @@ DEFAULT_CONFIG = {
         "ollama_models": get_config_value("llm.ollama_models", list, ["llama2"]),
         "custom_endpoint_base_url": get_config_value("llm.custom_endpoint_base_url", str, "http://your-custom-endpoint"),
         "custom_endpoint_models": get_config_value("llm.custom_endpoint_models", list, ["custom-model-1"]),
+        "context_window": get_config_value("llm.context_window", int, 10),
     },
     "database": {
         "engine": get_config_value("database.engine", str, "sqlite"),
