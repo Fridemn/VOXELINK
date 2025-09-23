@@ -124,17 +124,9 @@ class VoxelinkGUI(QMainWindow):
         server_item.setFont(QFont("Arial", 11))
         self.nav_list.addItem(server_item)
 
-        chat_item = QListWidgetItem("💬 语音聊天")
-        chat_item.setFont(QFont("Arial", 11))
-        self.nav_list.addItem(chat_item)
-
         realtime_chat_item = QListWidgetItem("🔄 实时语音聊天")
         realtime_chat_item.setFont(QFont("Arial", 11))
         self.nav_list.addItem(realtime_chat_item)
-
-        stt_item = QListWidgetItem("🎤 实时语音识别")
-        stt_item.setFont(QFont("Arial", 11))
-        self.nav_list.addItem(stt_item)
 
         self.nav_list.currentRowChanged.connect(self.change_page)
         main_splitter.addWidget(self.nav_list)
@@ -149,14 +141,8 @@ class VoxelinkGUI(QMainWindow):
         # 创建启动管理页面
         self.create_server_page()
 
-        # 创建聊天页面
-        self.create_chat_page()
-
         # 创建实时语音聊天页面
         self.create_realtime_chat_page()
-
-        # 创建实时语音识别页面
-        self.create_realtime_stt_page()
 
         # 设置默认页面
         self.nav_list.setCurrentRow(0)
@@ -382,7 +368,7 @@ class VoxelinkGUI(QMainWindow):
 
         # 连接到pipeline WebSocket
         port = self.port_input.text()
-        url = f"ws://localhost:{port}/stt/ws/pipeline"
+        url = f"ws://localhost:{port}/ws/auto_pipeline"
         self.chat_websocket.open(QUrl(url))
 
         self.chat_status_label.setText("连接中...")
