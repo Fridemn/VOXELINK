@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List
 
-from ..models.stt_schemas import (
+from ..models.stt import (
     VoiceprintRegistrationRequest, VoiceprintRegistrationResponse,
     VoiceprintCompareRequest, VoiceprintCompareResponse,
     VoiceprintMatchRequest, VoiceprintMatchResponse,

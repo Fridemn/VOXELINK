@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 
-from ..models.stt_schemas import AudioRecognitionRequest, AudioRecognitionResponse
+from ..models.stt import AudioRecognitionRequest, AudioRecognitionResponse
 from ..services.asr_service import get_asr_service
 from ..services.vpr_service import get_vpr_service
 
