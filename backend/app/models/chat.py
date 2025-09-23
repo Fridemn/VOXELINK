@@ -13,14 +13,6 @@ from tortoise.models import Model
 from tortoise import fields
 
 
-class MessageType(str, Enum):
-    TEXT = "text"
-    IMAGE = "image"
-    FILE = "file"
-    AUDIO = "audio"
-    VIDEO = "video"
-
-
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -60,14 +52,6 @@ class ChatMessage(Model):
         for comp in self.components:
             if comp["type"] == "text":
                 text_parts.append(comp["content"])
-            elif comp["type"] == "audio":
-                text_parts.append(f"[音频: {comp['content']}]")
-            elif comp["type"] == "image":
-                text_parts.append(f"[图片: {comp['content']}]")
-            elif comp["type"] == "file":
-                text_parts.append(f"[文件: {comp['content']}]")
-            elif comp["type"] == "video":
-                text_parts.append(f"[视频: {comp['content']}]")
             else:
                 text_parts.append(f"[{comp['type']}: {comp['content']}]")
 

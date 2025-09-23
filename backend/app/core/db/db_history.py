@@ -14,7 +14,7 @@ from tortoise.exceptions import OperationalError, ConfigurationError
 from loguru import logger
 
 from ...models.chat import ChatMessage
-from ..llm.message import Message, MessageComponent, MessageType
+from ..llm.message import Message, MessageComponent
 from ... import app_config
 
 
@@ -79,35 +79,15 @@ class DBMessageHistory:
         for comp in message.components:
             if hasattr(comp, "dict"):
                 comp_dict = comp.dict()
-                if comp.type == MessageType.AUDIO:
-                    if comp.content and comp.content.startswith("/static/audio/"):
-                        pass
-                    elif comp.extra and "file_path" in comp.extra:
-                        file_path = comp.extra["file_path"]
-                        if file_path and os.path.exists(file_path):
-                            pass
                 components.append(comp_dict)
             else:
                 components.append(comp)
         return components
 
     def _convert_db_component_to_message_component(self, comp_data: Dict[str, Any]) -> MessageComponent:
-        comp_type = comp_data.get("type", MessageType.TEXT)
+        comp_type = comp_data.get("type", "text")
         content = comp_data.get("content", "")
         extra = comp_data.get("extra", {})
-
-        if comp_type == MessageType.AUDIO and content:
-            file_path = extra.get("file_path", "")
-            if file_path and os.path.exists(file_path):
-                try:
-                    file_size = os.path.getsize(file_path)
-                    extra["file_size"] = file_size
-                except OSError:
-                    pass
-            elif content.startswith("/static/audio/"):
-                pass
-            else:
-                extra["available"] = False
 
         return MessageComponent(type=comp_type, content=content, extra=extra)
 
@@ -156,15 +136,7 @@ class DBMessageHistory:
             return 0
 
     async def has_audio_message(self) -> bool:
-        try:
-            messages = await ChatMessage.all()
-            for message in messages:
-                if message.has_component_type("audio"):
-                    return True
-            return False
-        except Exception as e:
-            logger.error(f"检查音频消息失败: {e}")
-            return False
+        return False
 
     async def delete_message(self, message_id: str) -> bool:
         await self._ensure_connection()

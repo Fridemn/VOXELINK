@@ -15,7 +15,7 @@ from .app import core, models, utils, config, api
 from .app.core import pipeline, db, llm, tts
 from .app.core.tts.tts_service import set_tts_config
 from .app.core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
-from .app.core.llm.message import Message, Response, MessageRole, MessageSender, MessageComponent, MessageType
+from .app.core.llm.message import Message, Response, MessageRole, MessageSender, MessageComponent
 from .app.core.db.db_history import db_message_history
 from .app.models import user, chat, stt
 from .app.utils import logger
@@ -31,7 +31,7 @@ __all__ = [
     'app',
     'core', 'models', 'services', 'utils', 'config', 'api',
     'pipeline', 'db', 'llm', 'tts','set_tts_config', 'db_message_history',
-    'Message', 'Response', 'MessageRole', 'MessageSender', 'MessageComponent', 'MessageType',
+    'Message', 'Response', 'MessageRole', 'MessageSender', 'MessageComponent',
     'LLMMessage', 'LLMResponse', 'LLMConfig', 'BaseLLM', 'OpenAILLM', 'AnthropicLLM', 'OllamaLLM',
     'user', 'chat', 'stt',
     'asr_service', 'llm_service', 'vpr_service',

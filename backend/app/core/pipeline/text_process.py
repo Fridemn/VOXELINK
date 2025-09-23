@@ -7,7 +7,7 @@ from loguru import logger
 
 from ... import app_config
 from ...core.db.db_history import db_message_history
-from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent, MessageType
+from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent
 from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
 
 
@@ -135,11 +135,8 @@ class TextProcess:
         # 否则从组件中提取文本
         text_parts = []
         for component in llm_message.components:
-            if component.type == MessageType.TEXT:
+            if component.type == "text":
                 text_parts.append(component.content)
-            elif component.type == MessageType.AUDIO and component.extra and "transcript" in component.extra:
-                # 如果是音频组件且有转写文本
-                text_parts.append(component.extra["transcript"])
 
         return " ".join(text_parts) if text_parts else ""
 
@@ -194,7 +191,7 @@ class TextProcess:
 
             response_message = Message(
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
-                components=[MessageComponent(type=MessageType.TEXT, content=raw_response.text)],
+                components=[MessageComponent(type="text", content=raw_response.text)],
                 message_str=raw_response.text,
             )
 
@@ -270,7 +267,7 @@ class TextProcess:
             # 创建AI响应消息对象
             response_message = Message(
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
-                components=[MessageComponent(type=MessageType.TEXT, content="")],  # 初始为空，稍后填充
+                components=[MessageComponent(type="text", content="")],  # 初始为空，稍后填充
                 message_str="",  # 初始为空，稍后填充
             )
 

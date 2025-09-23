@@ -13,14 +13,6 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
-class MessageType(str, Enum):
-    TEXT = "text"
-    IMAGE = "image"
-    FILE = "file"
-    AUDIO = "audio"
-    VIDEO = "video"
-
-
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -33,36 +25,18 @@ class MessageSender(BaseModel):
 
 
 class MessageComponent(BaseModel):
-    type: MessageType
+    type: str = "text"
     content: str
     extra: Optional[dict] = None
 
     @classmethod
     def create_text(cls, text: str) -> "MessageComponent":
         """创建文本类型组件"""
-        return cls(type=MessageType.TEXT, content=text)
-
-    @classmethod
-    def create_audio(
-        cls, audio_url: str, duration: Optional[float] = None, format: Optional[str] = None
-    ) -> "MessageComponent":
-        """创建音频类型组件"""
-        extra = {"duration": duration, "format": format}
-        return cls(type=MessageType.AUDIO, content=audio_url, extra={k: v for k, v in extra.items() if v is not None})
+        return cls(type="text", content=text)
 
     def to_display_text(self) -> str:
         """返回组件的可显示文本"""
-        if self.type == MessageType.TEXT:
-            return self.content
-        elif self.type == MessageType.AUDIO:
-            return f"[音频: {self.content}]"
-        elif self.type == MessageType.IMAGE:
-            return f"[图片: {self.content}]"
-        elif self.type == MessageType.FILE:
-            return f"[文件: {self.content}]"
-        elif self.type == MessageType.VIDEO:
-            return f"[视频: {self.content}]"
-        return f"[{self.type}: {self.content}]"
+        return self.content
 
 
 class Message(BaseModel):
