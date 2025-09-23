@@ -19,9 +19,9 @@ from PyQt6.QtWidgets import (
     QStackedWidget, QListWidget, QListWidgetItem, QComboBox, QProgressBar,
     QTextBrowser
 )
-from PyQt6.QtCore import QThread, pyqtSignal, QProcess, QUrl, QTimer
+from PyQt6.QtCore import QThread, pyqtSignal, QProcess, QUrl, QTimer, QTime, QIODevice, QByteArray
 from PyQt6.QtGui import QFont, QIcon, QPixmap
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput, QAudioSource, QAudioFormat, QAudioDevice, QMediaDevices
 from PyQt6.QtWebSockets import QWebSocket
 from PyQt6.QtNetwork import QAbstractSocket
 
@@ -33,6 +33,7 @@ class VoxelinkGUI(QMainWindow):
         super().__init__()
         self.server_thread = None
         self.chat_websocket = None
+        self.stt_websocket = None
         self.audio_player = None
         self.audio_output = None
         self.pyaudio_instance = None
@@ -42,6 +43,42 @@ class VoxelinkGUI(QMainWindow):
         self.recorded_audio_file = None
         self.audio_queue = []
         self.is_playing = False
+        # 实时STT相关变量
+        self.stt_audio_context = None
+        self.stt_media_stream = None
+        self.stt_audio_processor = None
+        self.stt_is_recording = False
+        self.stt_is_connected = False
+        self.stt_is_speaking = False
+        self.stt_speech_frames = []
+        self.stt_silence_frames = 0
+        self.stt_pyaudio = None
+        self.stt_stream = None
+        self.stt_audio_timer = None
+        # VAD配置
+        self.stt_vad_config = {
+            'sample_rate': 16000,
+            'channels': 1,
+            'vad_threshold': 0.15,
+            'min_speech_frames': 2,
+            'max_silence_frames': 5,
+            'audio_rms_threshold': 0.025,
+            'chunk_size': 2048
+        }
+        self.stt_audio_buffer = QByteArray()
+        self.stt_vad_config = {
+            'sample_rate': 16000,
+            'channels': 1,
+            'chunk_size': 2048,
+            'vad_threshold': 0.15,
+            'min_speech_frames': 2,
+            'max_silence_frames': 5,
+            'audio_rms_threshold': 0.025,
+            'real_time_frames': 15,
+            'tail_threshold_ratio': 0.4,
+            'speech_padding_frames': 2,
+            'end_speech_delay_ms': 300
+        }
         self.init_ui()
 
     def init_ui(self):
@@ -70,6 +107,10 @@ class VoxelinkGUI(QMainWindow):
         chat_item.setFont(QFont("Arial", 11))
         self.nav_list.addItem(chat_item)
 
+        stt_item = QListWidgetItem("🎤 实时语音识别")
+        stt_item.setFont(QFont("Arial", 11))
+        self.nav_list.addItem(stt_item)
+
         self.nav_list.currentRowChanged.connect(self.change_page)
         main_splitter.addWidget(self.nav_list)
 
@@ -85,6 +126,9 @@ class VoxelinkGUI(QMainWindow):
 
         # 创建聊天页面
         self.create_chat_page()
+
+        # 创建实时语音识别页面
+        self.create_realtime_stt_page()
 
         # 设置默认页面
         self.nav_list.setCurrentRow(0)
@@ -724,7 +768,469 @@ class VoxelinkGUI(QMainWindow):
         self.stop_button.setEnabled(False)
         self.statusBar().showMessage("服务器已停止")
 
+    def create_realtime_stt_page(self):
+        """创建实时语音识别页面"""
+        stt_widget = QWidget()
+        layout = QVBoxLayout(stt_widget)
+
+        # 标题
+        title_label = QLabel("🎤 VOXELINK 实时语音识别")
+        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        layout.addWidget(title_label)
+
+        # 连接状态
+        status_group = QGroupBox("连接状态")
+        status_layout = QVBoxLayout(status_group)
+
+        self.stt_status_label = QLabel("未连接")
+        self.stt_status_label.setStyleSheet("color: red; font-weight: bold;")
+        status_layout.addWidget(self.stt_status_label)
+
+        connect_layout = QHBoxLayout()
+        self.stt_connect_btn = QPushButton("连接服务器")
+        self.stt_connect_btn.clicked.connect(self.stt_connect)
+        connect_layout.addWidget(self.stt_connect_btn)
+
+        self.stt_disconnect_btn = QPushButton("断开连接")
+        self.stt_disconnect_btn.clicked.connect(self.stt_disconnect)
+        self.stt_disconnect_btn.setEnabled(False)
+        connect_layout.addWidget(self.stt_disconnect_btn)
+
+        status_layout.addLayout(connect_layout)
+        layout.addWidget(status_group)
+
+        # 设置
+        settings_group = QGroupBox("设置")
+        settings_layout = QVBoxLayout(settings_group)
+
+        # 服务器配置
+        server_layout = QHBoxLayout()
+        server_layout.addWidget(QLabel("服务器地址:"))
+        self.stt_server_url = QLineEdit("ws://localhost:8080/stt/ws")
+        server_layout.addWidget(self.stt_server_url)
+        settings_layout.addLayout(server_layout)
+
+        # 用户配置
+        user_layout = QHBoxLayout()
+        user_layout.addWidget(QLabel("用户Token:"))
+        self.stt_user_token = QLineEdit()
+        user_layout.addWidget(self.stt_user_token)
+        settings_layout.addLayout(user_layout)
+
+        llm_layout = QHBoxLayout()
+        llm_layout.addWidget(QLabel("LLM API地址:"))
+        self.stt_llm_api_url = QLineEdit()
+        llm_layout.addWidget(self.stt_llm_api_url)
+        settings_layout.addLayout(llm_layout)
+
+        # 选项
+        options_layout = QHBoxLayout()
+        self.stt_check_voiceprint = QCheckBox("启用声纹识别")
+        self.stt_only_register_user = QCheckBox("仅识别注册用户")
+        self.stt_identify_unregistered = QCheckBox("识别未注册用户")
+        options_layout.addWidget(self.stt_check_voiceprint)
+        options_layout.addWidget(self.stt_only_register_user)
+        options_layout.addWidget(self.stt_identify_unregistered)
+        settings_layout.addLayout(options_layout)
+
+        layout.addWidget(settings_group)
+
+        # 控制按钮
+        controls_layout = QHBoxLayout()
+        self.stt_start_btn = QPushButton("开始录音")
+        self.stt_start_btn.clicked.connect(self.stt_start_recording)
+        self.stt_start_btn.setEnabled(False)
+        controls_layout.addWidget(self.stt_start_btn)
+
+        self.stt_stop_btn = QPushButton("停止录音")
+        self.stt_stop_btn.clicked.connect(self.stt_stop_recording)
+        self.stt_stop_btn.setEnabled(False)
+        self.stt_stop_btn.setStyleSheet("QPushButton { background-color: #e74c3c; color: white; }")
+        controls_layout.addWidget(self.stt_stop_btn)
+
+        self.stt_clear_btn = QPushButton("清空记录")
+        self.stt_clear_btn.clicked.connect(self.stt_clear_transcript)
+        controls_layout.addWidget(self.stt_clear_btn)
+
+        layout.addLayout(controls_layout)
+
+        # 语音活动指示器
+        voice_group = QGroupBox("语音活动")
+        voice_layout = QHBoxLayout(voice_group)
+
+        self.stt_voice_indicator = QLabel("●")
+        self.stt_voice_indicator.setStyleSheet("color: #bdc3c7; font-size: 20px;")
+        voice_layout.addWidget(self.stt_voice_indicator)
+
+        self.stt_voice_status = QLabel("未检测到语音")
+        voice_layout.addWidget(self.stt_voice_status)
+
+        layout.addWidget(voice_group)
+
+        # 录音状态
+        self.stt_recording_status = QLabel("未开始录音")
+        self.stt_recording_status.setStyleSheet("background-color: #e8f4fd; padding: 8px; border-radius: 4px; font-weight: bold; color: #2c3e50;")
+        layout.addWidget(self.stt_recording_status)
+
+        # VAD调试面板
+        vad_group = QGroupBox("VAD 实时调试信息")
+        vad_layout = QVBoxLayout(vad_group)
+
+        # VAD仪表
+        vad_meter_layout = QHBoxLayout()
+        self.stt_vad_meter = QProgressBar()
+        self.stt_vad_meter.setMaximum(100)
+        self.stt_vad_meter.setValue(0)
+        vad_meter_layout.addWidget(QLabel("VAD水平:"))
+        vad_meter_layout.addWidget(self.stt_vad_meter)
+        vad_layout.addLayout(vad_meter_layout)
+
+        # VAD统计信息
+        vad_stats_layout = QHBoxLayout()
+        self.stt_vad_rms = QLabel("RMS: 0.000")
+        self.stt_vad_threshold = QLabel("阈值: 0.150")
+        self.stt_vad_confidence = QLabel("置信度: 0.000")
+        self.stt_vad_status_label = QLabel("状态: 未检测")
+        vad_stats_layout.addWidget(self.stt_vad_rms)
+        vad_stats_layout.addWidget(self.stt_vad_threshold)
+        vad_stats_layout.addWidget(self.stt_vad_confidence)
+        vad_stats_layout.addWidget(self.stt_vad_status_label)
+        vad_layout.addLayout(vad_stats_layout)
+
+        self.stt_audio_duration = QLabel("音频时长: 0.00s")
+        vad_layout.addWidget(self.stt_audio_duration)
+
+        layout.addWidget(vad_group)
+
+        # 转录结果
+        transcript_group = QGroupBox("转录结果")
+        transcript_layout = QVBoxLayout(transcript_group)
+
+        self.stt_transcript = QTextBrowser()
+        self.stt_transcript.setMinimumHeight(200)
+        transcript_layout.addWidget(self.stt_transcript)
+
+        layout.addWidget(transcript_group)
+
+        self.stacked_widget.addWidget(stt_widget)
+
+    def stt_connect(self):
+        """连接到实时STT WebSocket"""
+        if self.stt_websocket:
+            self.stt_websocket.close()
+
+        server_url = self.stt_server_url.text()
+        if not server_url:
+            self.stt_add_message("请输入服务器地址", True, True)
+            return
+
+        try:
+            self.stt_add_message(f"正在连接到 {server_url}...", True)
+            self.stt_websocket = QWebSocket()
+            self.stt_websocket.connected.connect(self.stt_on_connected)
+            self.stt_websocket.disconnected.connect(self.stt_on_disconnected)
+            self.stt_websocket.textMessageReceived.connect(self.stt_on_message)
+            self.stt_websocket.errorOccurred.connect(self.stt_on_error)
+
+            self.stt_websocket.open(QUrl(server_url))
+
+            self.stt_status_label.setText("连接中...")
+            self.stt_status_label.setStyleSheet("color: orange; font-weight: bold;")
+            self.stt_connect_btn.setEnabled(False)
+
+        except Exception as e:
+            self.stt_add_message(f"连接错误: {str(e)}", False, True)
+            self.stt_update_status(False)
+
+    def stt_disconnect(self):
+        """断开实时STT连接"""
+        if self.stt_websocket:
+            self.stt_websocket.close()
+        self.stt_stop_recording()
+        self.stt_on_disconnected()
+
+    def stt_on_connected(self):
+        """实时STT连接成功"""
+        self.stt_is_connected = True
+        self.stt_status_label.setText("已连接")
+        self.stt_status_label.setStyleSheet("color: green; font-weight: bold;")
+        self.stt_connect_btn.setEnabled(False)
+        self.stt_disconnect_btn.setEnabled(True)
+        self.stt_start_btn.setEnabled(True)
+        self.stt_add_message("已连接到实时语音识别服务", True)
+        
+        # 发送配置信息
+        self.stt_send_config()
+
+    def stt_send_config(self):
+        """发送配置信息到服务器"""
+        if not self.stt_websocket or self.stt_websocket.state() != QAbstractSocket.SocketState.ConnectedState:
+            return
+
+        config = {
+            "user_token": self.stt_user_token.text().strip(),
+            "llm_api_url": self.stt_llm_api_url.text().strip(),
+            "check_voiceprint": self.stt_check_voiceprint.isChecked(),
+            "only_register_user": self.stt_only_register_user.isChecked(),
+            "identify_unregistered": self.stt_identify_unregistered.isChecked()
+        }
+
+        message = json.dumps({
+            "action": "config",
+            "data": config
+        })
+
+        try:
+            self.stt_websocket.sendTextMessage(message)
+            self.stt_add_message("配置已发送", True)
+        except Exception as e:
+            self.stt_add_message(f"发送配置失败: {str(e)}", False, True)
+
+    def stt_on_disconnected(self):
+        """实时STT连接断开"""
+        self.stt_is_connected = False
+        self.stt_status_label.setText("未连接")
+        self.stt_status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.stt_connect_btn.setEnabled(True)
+        self.stt_disconnect_btn.setEnabled(False)
+        self.stt_start_btn.setEnabled(False)
+        self.stt_stop_btn.setEnabled(False)
+
+    def stt_on_error(self, error):
+        """实时STT连接错误"""
+        self.stt_status_label.setText(f"连接错误: {error}")
+        self.stt_status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.stt_connect_btn.setEnabled(True)
+        self.stt_disconnect_btn.setEnabled(False)
+        self.stt_start_btn.setEnabled(False)
+
+    def stt_on_message(self, message):
+        """处理实时STT消息"""
+        try:
+            data = json.loads(message)
+            self.stt_handle_message(data)
+        except json.JSONDecodeError:
+            self.stt_add_message(f"收到无效JSON消息: {message}", False, True)
+
+    def stt_handle_message(self, data):
+        """处理实时STT消息"""
+        if data.get("success"):
+            if data.get("text"):
+                # 转录结果
+                self.stt_add_message(data["text"], False)
+            elif data.get("message"):
+                # 系统消息
+                self.stt_add_message(data["message"], True)
+        else:
+            # 错误消息
+            error_msg = data.get("error", "未知错误")
+            self.stt_add_message(f"错误: {error_msg}", False, True)
+
+    def stt_start_recording(self):
+        """开始实时录音"""
+        if not self.stt_is_connected:
+            self.stt_add_message("请先连接到服务器", False, True)
+            return
+
+        try:
+            self.stt_add_message("开始录音...", True)
+            self.stt_is_recording = True
+            self.stt_start_btn.setEnabled(False)
+            self.stt_stop_btn.setEnabled(True)
+            self.stt_recording_status.setText("正在录音")
+            self.stt_recording_status.setStyleSheet("background-color: #d4edda; color: #155724;")
+
+            # 使用pyaudio进行录音
+            self.stt_pyaudio = pyaudio.PyAudio()
+            self.stt_stream = self.stt_pyaudio.open(
+                format=pyaudio.paInt16,
+                channels=self.stt_vad_config['channels'],
+                rate=self.stt_vad_config['sample_rate'],
+                input=True,
+                frames_per_buffer=self.stt_vad_config['chunk_size']
+            )
+
+            # 使用定时器定期读取音频数据
+            self.stt_audio_timer = QTimer()
+            self.stt_audio_timer.timeout.connect(self.stt_process_audio_data)
+            self.stt_audio_timer.start(100)  # 每100ms读取一次
+            self.stt_add_message("音频录制已启动", True)
+
+        except Exception as e:
+            self.stt_add_message(f"录音失败: {str(e)}", False, True)
+            self.stt_is_recording = False
+            self.stt_start_btn.setEnabled(True)
+            self.stt_stop_btn.setEnabled(False)
+
+    def stt_stop_recording(self):
+        """停止实时录音"""
+        if self.stt_is_recording:
+            self.stt_is_recording = False
+            if self.stt_audio_timer:
+                self.stt_audio_timer.stop()
+                self.stt_audio_timer = None
+            if hasattr(self, 'stt_stream') and self.stt_stream:
+                self.stt_stream.stop_stream()
+                self.stt_stream.close()
+            if hasattr(self, 'stt_pyaudio') and self.stt_pyaudio:
+                self.stt_pyaudio.terminate()
+            self.stt_start_btn.setEnabled(True)
+            self.stt_stop_btn.setEnabled(False)
+            self.stt_recording_status.setText("录音已停止")
+            self.stt_recording_status.setStyleSheet("background-color: #f8d7da; color: #721c24;")
+            self.stt_add_message("录音已停止", True)
+
+    def stt_process_audio_data(self):
+        """处理音频数据"""
+        if not self.stt_is_recording or not hasattr(self, 'stt_stream'):
+            return
+
+        try:
+            # 从pyaudio流读取数据
+            audio_bytes = self.stt_stream.read(self.stt_vad_config['chunk_size'], exception_on_overflow=False)
+            
+            if len(audio_bytes) > 0:
+                # 计算RMS值用于VAD
+                rms = self.stt_calculate_rms(audio_bytes)
+                self.stt_update_vad_display(rms)
+                
+                # 简单的VAD逻辑
+                is_speech = rms > self.stt_vad_config['vad_threshold']
+                self.stt_update_voice_activity(is_speech)
+                
+                # 如果检测到语音，开始收集音频数据
+                if is_speech:
+                    self.stt_speech_frames.append(audio_bytes)
+                    self.stt_silence_frames = 0
+                else:
+                    if self.stt_speech_frames:
+                        self.stt_silence_frames += 1
+                        # 如果静音持续时间超过阈值，发送已收集的音频
+                        if self.stt_silence_frames >= self.stt_vad_config['max_silence_frames']:
+                            self.stt_send_audio_chunk()
+                
+        except Exception as e:
+            self.stt_add_message(f"音频处理错误: {str(e)}", False, True)
+
+    def stt_calculate_rms(self, audio_data):
+        """计算音频数据的RMS值"""
+        if len(audio_data) == 0:
+            return 0.0
+        
+        # 将字节数据转换为16位整数
+        int16_array = []
+        for i in range(0, len(audio_data), 2):
+            if i + 1 < len(audio_data):
+                # 小端字节序
+                sample = int.from_bytes(audio_data[i:i+2], byteorder='little', signed=True)
+                int16_array.append(sample)
+        
+        if not int16_array:
+            return 0.0
+        
+        # 计算RMS
+        sum_squares = sum(x * x for x in int16_array)
+        rms = (sum_squares / len(int16_array)) ** 0.5
+        
+        # 归一化到0-1范围 (16位音频的最大值是32767)
+        return rms / 32767.0
+
+    def stt_update_vad_display(self, rms):
+        """更新VAD显示"""
+        # 更新RMS显示
+        self.stt_vad_rms.setText(f"RMS: {rms:.3f}")
+        
+        # 更新VAD仪表
+        vad_level = min(int(rms * 100), 100)
+        self.stt_vad_meter.setValue(vad_level)
+        
+        # 更新阈值显示
+        threshold = self.stt_vad_config['vad_threshold']
+        self.stt_vad_threshold.setText(f"阈值: {threshold:.3f}")
+        
+        # 更新置信度 (这里简化为RMS值)
+        self.stt_vad_confidence.setText(f"置信度: {rms:.3f}")
+
+    def stt_update_voice_activity(self, is_active):
+        """更新语音活动指示器"""
+        if is_active != self.stt_is_speaking:
+            self.stt_is_speaking = is_active
+            if is_active:
+                self.stt_voice_indicator.setStyleSheet("color: #2ecc71; font-size: 20px;")
+                self.stt_voice_status.setText("检测到语音 (正在识别)")
+                self.stt_vad_status_label.setText("状态: 检测到语音")
+            else:
+                self.stt_voice_indicator.setStyleSheet("color: #bdc3c7; font-size: 20px;")
+                self.stt_voice_status.setText("未检测到语音")
+                self.stt_vad_status_label.setText("状态: 未检测")
+
+    def stt_send_audio_chunk(self):
+        """发送音频块到服务器"""
+        if not self.stt_speech_frames or not self.stt_websocket:
+            return
+        
+        try:
+            # 合并所有语音帧
+            combined_audio = b''.join(self.stt_speech_frames)
+            
+            # 转换为base64
+            base64_audio = base64.b64encode(combined_audio).decode('utf-8')
+            
+            # 发送到WebSocket
+            message = json.dumps({
+                "action": "audio",
+                "data": {
+                    "audio_data": base64_audio,
+                    "format": "pcm",
+                    "sample_rate": self.stt_vad_config['sample_rate'],
+                    "channels": self.stt_vad_config['channels']
+                }
+            })
+            
+            self.stt_websocket.sendTextMessage(message)
+            
+            # 清空已发送的帧
+            self.stt_speech_frames.clear()
+            self.stt_silence_frames = 0
+            
+        except Exception as e:
+            self.stt_add_message(f"发送音频失败: {str(e)}", False, True)
+
+    def stt_clear_transcript(self):
+        """清空转录结果"""
+        self.stt_transcript.clear()
+        self.stt_add_message("记录已清空", True)
+
+    def stt_add_message(self, text, is_system=False, is_error=False):
+        """添加消息到转录结果"""
+        timestamp = QTime.currentTime().toString("hh:mm:ss")
+        message_type = ""
+        if is_error:
+            message_type = " [错误]"
+        elif is_system:
+            message_type = " [系统]"
+
+        self.stt_transcript.append(f"[{timestamp}]{message_type} {text}")
+        # 滚动到底部
+        scrollbar = self.stt_transcript.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
     def closeEvent(self, event):
+        """窗口关闭事件"""
+        self.stop_server()
+        self.disconnect_chat()
+        self.stt_disconnect()
+
+        # 清理录音资源
+        self.cleanup_recording_resources()
+
+        if self.recorded_audio_file and os.path.exists(self.recorded_audio_file):
+            try:
+                os.remove(self.recorded_audio_file)
+            except:
+                pass
+
+        event.accept()
         """窗口关闭事件"""
         self.stop_server()
         self.disconnect_chat()
