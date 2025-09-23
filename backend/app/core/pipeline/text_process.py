@@ -5,13 +5,13 @@ import json
 import traceback
 from loguru import logger
 
-from ... import get_app_config
+from ... import app_config
 from ...core.db.db_history import db_message_history
 from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent, MessageType
 from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
 
 
-llm_config = get_app_config().llm
+llm_config = app_config.llm
 if llm_config is None:
     raise ValueError("LLM configuration not found in app_config")
 
@@ -68,9 +68,9 @@ class TextProcess:
 
     def _initialize_llms(self):
         # 根据新的配置结构初始化LLM实例
-        openai_config = get_app_config().openai
-        anthropic_config = get_app_config().anthropic
-        custom_endpoint_config = get_app_config().custom_endpoint
+        openai_config = app_config.openai
+        anthropic_config = app_config.anthropic
+        custom_endpoint_config = app_config.custom_endpoint
 
         # 初始化OpenAI模型
         if openai_config:

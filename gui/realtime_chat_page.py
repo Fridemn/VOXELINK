@@ -157,7 +157,7 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_websocket.binaryMessageReceived.connect(self.on_binary_message)
 
         # 连接到自动pipeline WebSocket
-        url = self.config['gui']['server']['auto_pipeline_ws_url']
+        url = self.config['gui']['server']['realtime_chat_ws_url']
         self.realtime_chat_websocket.open(QUrl(url))
 
         self.realtime_chat_status_label.setText("连接中...")

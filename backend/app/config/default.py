@@ -193,7 +193,7 @@ DEFAULT_CONFIG["gui"] = {
         "default_host": get_config_value("gui.server.default_host", str, "0.0.0.0"),
         "default_port": get_config_value("gui.server.default_port", int, 8080),
         "stt_ws_url": get_config_value("gui.server.stt_ws_url", str, "ws://localhost:8080/stt/ws"),
-        "auto_pipeline_ws_url": get_config_value("gui.server.auto_pipeline_ws_url", str, "ws://localhost:8080/ws/auto_pipeline")
+        "realtime_chat_ws_url": get_config_value("gui.server.realtime_chat_ws_url", str, "ws://localhost:8080/ws/realtime_chat")
     },
     "vad": {
         "stt": {

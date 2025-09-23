@@ -70,8 +70,8 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@router.websocket("/ws/auto_pipeline")
-async def auto_pipeline_websocket_endpoint(websocket: WebSocket):
+@router.websocket("/ws/realtime_chat")
+async def realtime_chat_websocket_endpoint(websocket: WebSocket):
     """
     自动Pipeline WebSocket接口：语音输入 -> STT -> 自动触发LLM -> TTS -> 语音输出
     STT完成后自动调用pipeline进行完整处理
