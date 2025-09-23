@@ -49,8 +49,6 @@ class ChatMessage(Model):
     components = fields.JSONField(default=list, description="消息组件JSON")
     model = fields.CharField(max_length=100, null=True, description="模型名称")
     timestamp = fields.BigIntField(description="消息时间戳")
-    input_tokens = fields.IntField(null=True, description="输入token数")
-    output_tokens = fields.IntField(null=True, description="输出token数")
     source_model = fields.CharField(max_length=100, null=True, description="源模型")
     target_model = fields.CharField(max_length=100, null=True, description="目标模型")
 
@@ -108,8 +106,6 @@ class ChatMessage(Model):
                 {"type": comp.type, "content": comp.content, "extra": comp.extra} for comp in llm_message.components
             ],
             timestamp=llm_message.timestamp,
-            input_tokens=llm_message.input_tokens,
-            output_tokens=llm_message.output_tokens,
             source_model=llm_message.source_model,
             target_model=llm_message.target_model,
         )

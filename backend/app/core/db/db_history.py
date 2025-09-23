@@ -144,15 +144,10 @@ class DBMessageHistory:
                     ),
                 }
 
-                # 添加token相关信息
                 if role_value == MessageRole.USER or role_value == MessageRole.SYSTEM:
-                    if message.input_tokens is not None:
-                        message_data["input_tokens"] = message.input_tokens
                     if message.target_model:
                         message_data["target_model"] = message.target_model
                 elif role_value == MessageRole.ASSISTANT:
-                    if message.output_tokens is not None:
-                        message_data["output_tokens"] = message.output_tokens
                     if message.source_model:
                         message_data["source_model"] = message.source_model
 
@@ -262,28 +257,13 @@ class DBMessageHistory:
 
                         components.append(self._convert_db_component_to_message_component(comp_data))
 
-                    # 准备token相关数据
-                    token_data = {}
                     role = msg.role
-
-                    # 检查并修复角色格式
                     if role.startswith("MessageRole."):
                         actual_role = role.split(".", 1)[1].lower()
                         if actual_role in ["user", "assistant", "system"]:
                             role = actual_role
                         else:
                             role = "user"
-
-                    if role == MessageRole.USER or role == MessageRole.SYSTEM:
-                        if msg.input_tokens is not None:
-                            token_data["input_tokens"] = msg.input_tokens
-                        if msg.target_model:
-                            token_data["target_model"] = msg.target_model
-                    elif role == MessageRole.ASSISTANT:
-                        if msg.output_tokens is not None:
-                            token_data["output_tokens"] = msg.output_tokens
-                        if msg.source_model:
-                            token_data["source_model"] = msg.source_model
 
                     # 创建消息对象
                     message = Message(
@@ -293,7 +273,8 @@ class DBMessageHistory:
                         components=components,
                         message_str=msg.content,
                         timestamp=msg.timestamp,
-                        **token_data,
+                        target_model=msg.target_model if role in [MessageRole.USER, MessageRole.SYSTEM] else None,
+                        source_model=msg.source_model if role == MessageRole.ASSISTANT else None,
                     )
                     result.append(message)
                 except Exception as e:
@@ -435,12 +416,7 @@ class DBMessageHistory:
                     continue
                 components.append(self._convert_db_component_to_message_component(comp_data))
 
-            # 准备token数据和其他字段
             extra_data = {}
-            if message.input_tokens is not None:
-                extra_data["input_tokens"] = message.input_tokens
-            if message.output_tokens is not None:
-                extra_data["output_tokens"] = message.output_tokens
             if message.source_model:
                 extra_data["source_model"] = message.source_model
             if message.target_model:

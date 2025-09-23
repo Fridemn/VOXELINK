@@ -6,7 +6,6 @@ import traceback
 from loguru import logger
 
 from ... import app_config
-from ...utils.token_counter import TokenCounter
 from ...core.db.db_history import db_message_history
 from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent, MessageType
 from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
@@ -176,13 +175,6 @@ class TextProcess:
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
 
-            # 预先估算用户消息的token数量
-            try:
-                estimated_tokens = TokenCounter.count_tokens(message_text, model)
-                message.input_tokens = estimated_tokens
-            except Exception as e:
-                logger.error(f"计算用户消息token失败: {e}")
-
             # 尝试保存用户消息到历史记录
             if not skip_db:
                 try:
@@ -220,51 +212,17 @@ class TextProcess:
             # 始终在消息列表开头添加系统提示词
             chat_messages.insert(0, LLMMessage(role="system", content=SYSTEM_PROMPT))
 
-
-            # 在调用API之前估算所有消息的token
-            try:
-                openai_messages = []
-                for msg in chat_messages:
-                    openai_messages.append({"role": msg.role, "content": msg.content})
-                estimated_input_tokens = TokenCounter.estimate_openai_tokens(openai_messages, model)
-            except Exception as e:
-                logger.error(f"预估输入tokens失败: {e}")
-                estimated_input_tokens = None
-
             # 调用LLM进行回复
             llm = self.llm_instances[model]
             raw_response = await llm.chat_completion(chat_messages)
 
-            # 获取实际的token使用情况
-            actual_input_tokens = raw_response.input_tokens
-            actual_output_tokens = raw_response.output_tokens
-
-            # 如果API没有返回token计数，则使用我们的预估值
-            if actual_input_tokens is None:
-                actual_input_tokens = estimated_input_tokens
-
-            # 构造响应消息，包含token信息
             response_message = Message(
                 history_id=current_history_id,
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
                 components=[MessageComponent(type=MessageType.TEXT, content=raw_response.text)],
                 message_str=raw_response.text,
-                output_tokens=actual_output_tokens,
                 source_model=model,
             )
-
-            # 更新用户消息的输入tokens
-            if actual_input_tokens is not None and not skip_db:
-                try:
-                    # 直接更新消息对象
-                    message.input_tokens = actual_input_tokens
-
-                    # 更新历史记录中的消息token数据
-                    await db_message_history.update_message(
-                        current_history_id, message.message_id, {"input_tokens": actual_input_tokens}
-                    )
-                except Exception as e:
-                    logger.error(f"更新用户消息token计数失败: {e}")
 
             # 尝试保存AI回复到历史记录
             if not skip_db:
@@ -276,8 +234,6 @@ class TextProcess:
             return Response(
                 response_message=response_message,
                 raw_response=raw_response.raw_response,
-                input_tokens=actual_input_tokens,
-                output_tokens=actual_output_tokens,
             )
         except Exception as e:
             error_trace = traceback.format_exc()
@@ -318,13 +274,6 @@ class TextProcess:
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
 
-            # 预先估算用户消息的token数量
-            try:
-                estimated_tokens = TokenCounter.count_tokens(message_text, model)
-                message.input_tokens = estimated_tokens
-            except Exception as e:
-                logger.error(f"计算用户消息token失败: {e}")
-
             # 尝试保存用户消息到历史记录
             if not skip_db:
                 try:
@@ -360,16 +309,6 @@ class TextProcess:
             # 始终在消息列表开头添加系统提示词
             chat_messages.insert(0, LLMMessage(role="system", content=SYSTEM_PROMPT))
 
-            # 在调用API之前估算所有消息的token
-            try:
-                openai_messages = []
-                for msg in chat_messages:
-                    openai_messages.append({"role": msg.role, "content": msg.content})
-                estimated_input_tokens = TokenCounter.estimate_openai_tokens(openai_messages, model)
-            except Exception as e:
-                logger.error(f"预估输入tokens失败: {e}")
-                estimated_input_tokens = None
-
             # 流式调用LLM
             llm = self.llm_instances[model]
 
@@ -392,37 +331,11 @@ class TextProcess:
                 response_message.components[0].content = full_response
                 yield chunk
 
-            # 在流式响应结束后，计算token使用情况
-            try:
-                # 计算输出token
-                output_tokens = TokenCounter.count_tokens(full_response, model)
-                response_message.output_tokens = output_tokens
-                logger.debug(f"响应输出tokens: {output_tokens}")
-
-                # 更新用户消息的输入token
-                if estimated_input_tokens is not None and not skip_db:
-                    message.input_tokens = estimated_input_tokens
-                    await db_message_history.update_message(
-                        current_history_id, message.message_id, {"input_tokens": estimated_input_tokens}
-                    )
-            except Exception as e:
-                logger.error(f"计算token失败: {e}")
 
             # 将完整响应消息保存到历史记录
             if not skip_db:
                 try:
                     await db_message_history.add_message(current_history_id, response_message)
-
-                    # 将token信息作为特殊消息返回
-                    token_info = json.dumps(
-                        {
-                            "input_tokens": estimated_input_tokens,
-                            "output_tokens": output_tokens,
-                            "message_id": response_message.message_id,
-                            "history_id": current_history_id,  # 添加历史ID到token信息中
-                        }
-                    )
-                    yield f"__TOKEN_INFO__{token_info}"
                 except Exception as e:
                     logger.error(f"保存AI回复到历史记录失败: {e}")
 

@@ -22,16 +22,12 @@ class LLMMessage(BaseModel):
 class LLMResponse(BaseModel):
     text: str
     raw_response: Optional[Dict[str, Any]] = None
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
 
 
 class LLMErrorResponse(LLMResponse):
     def __init__(self, reason: str):
         super().__init__(text=f"LLM Error: {reason}")
         self.raw_response = {"error": reason}
-        self.input_tokens = None
-        self.output_tokens = None
 
 
 class LLMConfig(BaseModel):
@@ -78,20 +74,9 @@ class OpenAILLM(BaseLLM):
                     if "choices" not in result or result["choices"] is None:
                         raise ValueError("Required 'choices' key in API response")
 
-                    # 如果可能的话，提取token使用情况
-                    input_tokens = None
-                    output_tokens = None
-                    if "usage" in result:
-                        if "prompt_tokens" in result["usage"]:
-                            input_tokens = result["usage"]["prompt_tokens"]
-                        if "completion_tokens" in result["usage"]:
-                            output_tokens = result["usage"]["completion_tokens"]
-
                     return LLMResponse(
                         text=result["choices"][0]["message"]["content"],
                         raw_response=result,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
                     )
         except Exception as e:
             logger.error(f"OpenAI chat completion API failure: {type(e).__name__} - {str(e)}")
@@ -183,20 +168,9 @@ class AnthropicLLM(BaseLLM):
                     if "error" in result:
                         raise Exception(result["error"])
 
-                    # 提取token使用情况（Anthropic API的响应结构可能需要调整）
-                    input_tokens = None
-                    output_tokens = None
-                    if "usage" in result:
-                        if "input_tokens" in result["usage"]:
-                            input_tokens = result["usage"]["input_tokens"]
-                        if "output_tokens" in result["usage"]:
-                            output_tokens = result["usage"]["output_tokens"]
-
                     return LLMResponse(
                         text=result["content"][0]["text"],
                         raw_response=result,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
                     )
         except Exception as e:
             logger.error(f"Anthropic chat completion API failure: {type(e).__name__} - {str(e)}")
@@ -232,9 +206,6 @@ class OllamaLLM(BaseLLM):
                     return LLMResponse(
                         text=result.get("message", {}).get("content", ""),
                         raw_response=result,
-                        # Ollama 可能提供的 token 统计信息
-                        input_tokens=result.get("prompt_eval_count", None),
-                        output_tokens=result.get("eval_count", None),
                     )
         except Exception as e:
             logger.error(f"Ollama chat completion API failure: {type(e).__name__} - {str(e)}")

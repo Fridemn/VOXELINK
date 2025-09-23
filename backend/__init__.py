@@ -18,7 +18,7 @@ from .app.core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, Open
 from .app.core.llm.message import Message, Response, MessageRole, MessageSender, MessageComponent, MessageType
 from .app.core.db.db_history import db_message_history
 from .app.models import user, chat, stt
-from .app.utils import logger, token_counter
+from .app.utils import logger
 from .app.config import app_config
 from .app.api.system import api_system
 from .app.api.llm import api_llm
@@ -35,7 +35,7 @@ __all__ = [
     'LLMMessage', 'LLMResponse', 'LLMConfig', 'BaseLLM', 'OpenAILLM', 'AnthropicLLM', 'OllamaLLM',
     'user', 'chat', 'stt',
     'asr_service', 'llm_service', 'vpr_service',
-    'logger', 'token_counter',
+    'logger',
     'app_config',
     'api_system', 'api_llm', 'asr', 'vpr', 'ws',
     'response'

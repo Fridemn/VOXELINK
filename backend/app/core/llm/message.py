@@ -76,9 +76,6 @@ class Message(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
     raw_message: Optional[Any] = None
 
-    # 添加token统计相关字段
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
     target_model: Optional[str] = None
     source_model: Optional[str] = None
 
@@ -127,5 +124,3 @@ class Response(BaseModel):
     message_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     response_message: Message
     raw_response: Optional[dict] = None
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
