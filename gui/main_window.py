@@ -27,10 +27,15 @@ from PyQt6.QtNetwork import QAbstractSocket
 
 from .threads import RecordingThread, ServerThread
 
+# 导入配置
+from backend.app.config.app_config import AppConfig
+
 
 class VoxelinkGUI(QMainWindow):
     def __init__(self):
         super().__init__()
+        # 初始化配置
+        self.config = AppConfig()
         self.server_thread = None
         self.chat_websocket = None
         self.stt_websocket = None
@@ -55,30 +60,9 @@ class VoxelinkGUI(QMainWindow):
         self.stt_pyaudio = None
         self.stt_stream = None
         self.stt_audio_timer = None
-        # VAD配置
-        self.stt_vad_config = {
-            'sample_rate': 16000,
-            'channels': 1,
-            'vad_threshold': 0.15,
-            'min_speech_frames': 2,
-            'max_silence_frames': 5,
-            'audio_rms_threshold': 0.025,
-            'chunk_size': 2048
-        }
+        # VAD配置 - 从配置文件读取
+        self.stt_vad_config = self.config['gui']['vad']['stt']
         self.stt_audio_buffer = QByteArray()
-        self.stt_vad_config = {
-            'sample_rate': 16000,
-            'channels': 1,
-            'chunk_size': 2048,
-            'vad_threshold': 0.15,
-            'min_speech_frames': 2,
-            'max_silence_frames': 5,
-            'audio_rms_threshold': 0.025,
-            'real_time_frames': 15,
-            'tail_threshold_ratio': 0.4,
-            'speech_padding_frames': 2,
-            'end_speech_delay_ms': 300
-        }
         # 实时聊天相关变量
         self.realtime_chat_websocket = None
         self.realtime_chat_is_connected = False
@@ -91,15 +75,8 @@ class VoxelinkGUI(QMainWindow):
         self.realtime_chat_audio_timer = None
         self.realtime_chat_audio_queue = []  # 实时聊天音频队列
         self.realtime_chat_is_playing = False  # 实时聊天音频播放状态
-        self.realtime_chat_vad_config = {
-            'sample_rate': 16000,
-            'channels': 1,
-            'chunk_size': 2048,
-            'vad_threshold': 0.15,
-            'min_speech_frames': 2,
-            'max_silence_frames': 8,  # 稍微增加静音帧数，确保句子结束
-            'audio_rms_threshold': 0.025
-        }
+        # 实时聊天VAD配置 - 从配置文件读取
+        self.realtime_chat_vad_config = self.config['gui']['vad']['realtime_chat']
         self.init_ui()
 
     def init_ui(self):
@@ -189,10 +166,10 @@ class VoxelinkGUI(QMainWindow):
         # 主机和端口
         host_layout = QHBoxLayout()
         host_layout.addWidget(QLabel("主机:"))
-        self.host_input = QLineEdit("0.0.0.0")
+        self.host_input = QLineEdit(self.config['gui']['server']['default_host'])
         host_layout.addWidget(self.host_input)
         host_layout.addWidget(QLabel("端口:"))
-        self.port_input = QLineEdit("8080")
+        self.port_input = QLineEdit(str(self.config['gui']['server']['default_port']))
         host_layout.addWidget(self.port_input)
         server_layout.addLayout(host_layout)
 
@@ -269,7 +246,7 @@ class VoxelinkGUI(QMainWindow):
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("LLM模型:"))
         self.model_combo = QComboBox()
-        self.model_combo.addItems(["deepseek/deepseek-v3-0324", "gpt-3.5-turbo", "gpt-4"])
+        self.model_combo.addItems(self.config['gui']['models']['llm_models'])
         model_layout.addWidget(self.model_combo)
         config_layout.addLayout(model_layout)
 
@@ -827,7 +804,7 @@ class VoxelinkGUI(QMainWindow):
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("LLM模型:"))
         self.realtime_chat_model_combo = QComboBox()
-        self.realtime_chat_model_combo.addItems(["deepseek/deepseek-v3-0324", "gpt-3.5-turbo", "gpt-4"])
+        self.realtime_chat_model_combo.addItems(self.config['gui']['models']['llm_models'])
         model_layout.addWidget(self.realtime_chat_model_combo)
         config_layout.addLayout(model_layout)
 
@@ -1112,7 +1089,7 @@ class VoxelinkGUI(QMainWindow):
         # 服务器配置
         server_layout = QHBoxLayout()
         server_layout.addWidget(QLabel("服务器地址:"))
-        self.stt_server_url = QLineEdit("ws://localhost:8080/stt/ws")
+        self.stt_server_url = QLineEdit(self.config['gui']['server']['stt_ws_url'])
         server_layout.addWidget(self.stt_server_url)
         settings_layout.addLayout(server_layout)
 
@@ -1564,7 +1541,7 @@ class VoxelinkGUI(QMainWindow):
         self.realtime_chat_websocket.binaryMessageReceived.connect(self.on_realtime_chat_binary_message)
 
         # 连接到自动pipeline WebSocket
-        url = "ws://localhost:8080/ws/auto_pipeline"
+        url = self.config['gui']['server']['auto_pipeline_ws_url']
         self.realtime_chat_websocket.open(QUrl(url))
 
         self.realtime_chat_status_label.setText("连接中...")

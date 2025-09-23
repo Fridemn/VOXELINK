@@ -178,3 +178,40 @@ DEFAULT_CONFIG["characters"] = {
         }
     }
 }
+
+# GUI配置
+DEFAULT_CONFIG["gui"] = {
+    "models": {
+        "llm_models": get_config_value("gui.models.llm_models", list, ["deepseek/deepseek-v3-0324", "gpt-3.5-turbo", "gpt-4"])
+    },
+    "server": {
+        "default_host": get_config_value("gui.server.default_host", str, "0.0.0.0"),
+        "default_port": get_config_value("gui.server.default_port", int, 8080),
+        "stt_ws_url": get_config_value("gui.server.stt_ws_url", str, "ws://localhost:8080/stt/ws"),
+        "auto_pipeline_ws_url": get_config_value("gui.server.auto_pipeline_ws_url", str, "ws://localhost:8080/ws/auto_pipeline")
+    },
+    "vad": {
+        "stt": {
+            "sample_rate": get_config_value("gui.vad.stt.sample_rate", int, 16000),
+            "channels": get_config_value("gui.vad.stt.channels", int, 1),
+            "chunk_size": get_config_value("gui.vad.stt.chunk_size", int, 2048),
+            "vad_threshold": get_config_value("gui.vad.stt.vad_threshold", float, 0.15),
+            "min_speech_frames": get_config_value("gui.vad.stt.min_speech_frames", int, 2),
+            "max_silence_frames": get_config_value("gui.vad.stt.max_silence_frames", int, 5),
+            "audio_rms_threshold": get_config_value("gui.vad.stt.audio_rms_threshold", float, 0.025),
+            "real_time_frames": get_config_value("gui.vad.stt.real_time_frames", int, 15),
+            "tail_threshold_ratio": get_config_value("gui.vad.stt.tail_threshold_ratio", float, 0.4),
+            "speech_padding_frames": get_config_value("gui.vad.stt.speech_padding_frames", int, 2),
+            "end_speech_delay_ms": get_config_value("gui.vad.stt.end_speech_delay_ms", int, 300)
+        },
+        "realtime_chat": {
+            "sample_rate": get_config_value("gui.vad.realtime_chat.sample_rate", int, 16000),
+            "channels": get_config_value("gui.vad.realtime_chat.channels", int, 1),
+            "chunk_size": get_config_value("gui.vad.realtime_chat.chunk_size", int, 2048),
+            "vad_threshold": get_config_value("gui.vad.realtime_chat.vad_threshold", float, 0.15),
+            "min_speech_frames": get_config_value("gui.vad.realtime_chat.min_speech_frames", int, 2),
+            "max_silence_frames": get_config_value("gui.vad.realtime_chat.max_silence_frames", int, 8),
+            "audio_rms_threshold": get_config_value("gui.vad.realtime_chat.audio_rms_threshold", float, 0.025)
+        }
+    }
+}
