@@ -182,7 +182,12 @@ DEFAULT_CONFIG["characters"] = {
 # GUI配置
 DEFAULT_CONFIG["gui"] = {
     "models": {
-        "llm_models": get_config_value("gui.models.llm_models", list, ["deepseek/deepseek-v3-0324", "gpt-3.5-turbo", "gpt-4"])
+        "llm_models": get_config_value("gui.models.llm_models", list, ["deepseek/deepseek-v3-0324", "gpt-3.5-turbo", "gpt-4"]),
+        "default_llm_model": get_config_value("gui.models.default_llm_model", str, "deepseek/deepseek-v3-0324")
+    },
+    "realtime_chat": {
+        "stream": get_config_value("gui.realtime_chat.stream", bool, True),
+        "tts": get_config_value("gui.realtime_chat.tts", bool, True)
     },
     "server": {
         "default_host": get_config_value("gui.server.default_host", str, "0.0.0.0"),

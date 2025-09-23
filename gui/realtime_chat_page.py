@@ -7,6 +7,7 @@ import json
 import base64
 import tempfile
 import os
+import re
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QTextEdit, QGroupBox, QComboBox, QProgressBar, QTextBrowser
 from PyQt6.QtCore import QTimer, QTime, QUrl
 from PyQt6.QtGui import QFont
@@ -31,6 +32,8 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_audio_queue = []
         self.realtime_chat_is_playing = False
         self.realtime_chat_vad_config = self.config['gui']['vad']['realtime_chat']
+        self.realtime_chat_current_llm_response = ""
+        self.realtime_chat_is_streaming = False
         self.init_ui()
 
     def init_ui(self):
@@ -61,32 +64,6 @@ class RealtimeChatPage(QWidget):
 
         status_layout.addLayout(connect_layout)
         layout.addWidget(status_group)
-
-        # 配置
-        config_group = QGroupBox("配置")
-        config_layout = QVBoxLayout(config_group)
-
-        model_layout = QHBoxLayout()
-        model_layout.addWidget(QLabel("LLM模型:"))
-        self.realtime_chat_model_combo = QComboBox()
-        self.realtime_chat_model_combo.addItems(self.config['gui']['models']['llm_models'])
-        model_layout.addWidget(self.realtime_chat_model_combo)
-        config_layout.addLayout(model_layout)
-
-        options_layout = QHBoxLayout()
-        self.realtime_chat_stream_checkbox = QCheckBox("流式输出")
-        self.realtime_chat_stream_checkbox.setChecked(True)
-        self.realtime_chat_tts_checkbox = QCheckBox("启用TTS")
-        self.realtime_chat_tts_checkbox.setChecked(True)
-        options_layout.addWidget(self.realtime_chat_stream_checkbox)
-        options_layout.addWidget(self.realtime_chat_tts_checkbox)
-        config_layout.addLayout(options_layout)
-
-        self.realtime_chat_update_config_btn = QPushButton("更新配置")
-        self.realtime_chat_update_config_btn.clicked.connect(self.update_config)
-        config_layout.addWidget(self.realtime_chat_update_config_btn)
-
-        layout.addWidget(config_group)
 
         # 实时控制
         control_group = QGroupBox("实时控制")
@@ -211,7 +188,7 @@ class RealtimeChatPage(QWidget):
         self.add_message("实时聊天WebSocket连接成功", "system")
 
         # 连接成功后自动发送配置
-        self.update_config()
+        self.send_config()
 
     def on_disconnected(self):
         """实时聊天WebSocket断开连接"""
@@ -255,6 +232,8 @@ class RealtimeChatPage(QWidget):
                 if stt_data.get("transcription"):
                     self.add_message(f"语音识别: {stt_data['transcription']}", "stt")
                     self.add_message("正在生成回复...", "system")
+                    self.realtime_chat_current_llm_response = ""
+                    self.realtime_chat_is_streaming = False
 
             elif msg_type == "stream_chunk":
                 # 流式数据块
@@ -264,7 +243,13 @@ class RealtimeChatPage(QWidget):
                     self.add_message(f"语音识别: {chunk_data['transcription']}", "stt")
 
                 if chunk_data.get("text"):
-                    self.add_message(chunk_data["text"], "llm", append=True)
+                    self.realtime_chat_current_llm_response += chunk_data["text"]
+                    
+                    if not self.realtime_chat_is_streaming:
+                        self.realtime_chat_is_streaming = True
+                        self.add_message(self.realtime_chat_current_llm_response, "llm")
+                    else:
+                        self.replace_last_llm_message(self.realtime_chat_current_llm_response)
 
                 if chunk_data.get("audio"):
                     # 解码base64音频并添加到队列
@@ -285,8 +270,9 @@ class RealtimeChatPage(QWidget):
                     self.play_next_audio()
 
             elif msg_type == "complete":
-                # 处理完成
                 self.add_message("处理完成", "system")
+                self.realtime_chat_current_llm_response = ""
+                self.realtime_chat_is_streaming = False
 
             # 处理完成后允许再次录音
             if msg_type in ["stt_result", "response", "complete"]:
@@ -301,17 +287,15 @@ class RealtimeChatPage(QWidget):
             self.realtime_chat_processing_status.setText("等待语音输入")
             self.realtime_chat_processing_status.setStyleSheet("color: blue; font-weight: bold;")
 
-    def update_config(self):
-        """更新实时聊天配置"""
+    def send_config(self):
+        """发送实时聊天配置到服务器"""
         if not self.realtime_chat_websocket or self.realtime_chat_websocket.state() != QAbstractSocket.SocketState.ConnectedState:
-            self.realtime_chat_status_label.setText("请先连接")
-            self.realtime_chat_status_label.setStyleSheet("color: red; font-weight: bold;")
             return
 
         config = {
-            "model": self.realtime_chat_model_combo.currentText(),
-            "stream": self.realtime_chat_stream_checkbox.isChecked(),
-            "tts": self.realtime_chat_tts_checkbox.isChecked()
+            "model": self.config['gui']['models']['default_llm_model'],
+            "stream": self.config['gui']['realtime_chat']['stream'],
+            "tts": self.config['gui']['realtime_chat']['tts']
         }
 
         message = json.dumps({
@@ -319,7 +303,7 @@ class RealtimeChatPage(QWidget):
             "data": config
         })
         self.realtime_chat_websocket.sendTextMessage(message)
-        self.add_message("配置已更新", "system")
+        self.add_message("配置已发送", "system")
 
     def start_recording(self):
         """开始实时录音"""
@@ -548,35 +532,83 @@ class RealtimeChatPage(QWidget):
         timestamp = QTime.currentTime().toString("hh:mm:ss")
 
         if msg_type == "system":
-            color = "#2ecc71"  # 绿色
             prefix = "🔧 系统"
         elif msg_type == "stt":
-            color = "#3498db"  # 蓝色
             prefix = "🎤 STT"
         elif msg_type == "llm":
-            color = "#9b59b6"  # 紫色
             prefix = "🤖 LLM"
         elif msg_type == "error":
-            color = "#e74c3c"  # 红色
             prefix = "❌ 错误"
         else:
-            color = "#34495e"  # 深灰色
             prefix = "💬 消息"
 
-        formatted_message = f'<span style="color: {color};">[{timestamp}] {prefix}:</span> {message}<br>'
+        formatted_message = f'[{timestamp}] {prefix}: {message}'
 
-        if append and msg_type == "llm":
-            # 对于LLM流式输出，追加到最后一条消息
-            current_text = self.realtime_chat_text.toHtml()
-            # 简单的追加逻辑，这里可以优化
-            self.realtime_chat_text.setHtml(current_text + formatted_message)
+        current_text = self.realtime_chat_text.toPlainText()
+        if current_text:
+            new_text = current_text + '\n' + formatted_message
         else:
-            current_text = self.realtime_chat_text.toHtml()
-            self.realtime_chat_text.setHtml(current_text + formatted_message)
+            new_text = formatted_message
+        
+        self.realtime_chat_text.setPlainText(new_text)
 
         # 自动滚动到底部
         scrollbar = self.realtime_chat_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+    def add_stream_message(self, text):
+        """添加流式消息并返回消息ID"""
+        timestamp = QTime.currentTime().toString("hh:mm:ss")
+        color = "#9b59b6"  # 紫色
+        prefix = "🤖 LLM"
+
+        formatted_message = f'<span style="color: {color};">[{timestamp}] {prefix}:</span> {text}<br>'
+
+        current_text = self.realtime_chat_text.toHtml()
+        self.realtime_chat_text.setHtml(current_text + formatted_message)
+
+        return len(current_text)
+
+    def update_stream_message(self, message_id, text):
+        """更新流式消息内容"""
+        timestamp = QTime.currentTime().toString("hh:mm:ss")
+        color = "#9b59b6"  # 紫色
+        prefix = "🤖 LLM"
+
+        formatted_message = f'<span style="color: {color};">[{timestamp}] {prefix}:</span> {text}<br>'
+
+        current_html = self.realtime_chat_text.toHtml()
+
+        lines = current_html.split('<br>')
+        if lines:
+            lines[-2] = formatted_message.rstrip('<br>')
+            new_html = '<br>'.join(lines)
+            self.realtime_chat_text.setHtml(new_html)
+
+    def replace_last_llm_message(self, new_text):
+        """替换最后一条LLM消息的内容"""
+        current_text = self.realtime_chat_text.toPlainText()
+
+        lines = current_text.split('\n')
+        last_llm_index = -1
+        
+        for i in range(len(lines) - 1, -1, -1):
+            if '🤖 LLM:' in lines[i]:
+                last_llm_index = i
+                break
+        
+        if last_llm_index >= 0:
+            line = lines[last_llm_index]
+            prefix_end = line.find('🤖 LLM:') + len('🤖 LLM:')
+            prefix = line[:prefix_end]
+            
+            lines[last_llm_index] = f'{prefix} {new_text}'
+            
+            new_content = '\n'.join(lines)
+            self.realtime_chat_text.setPlainText(new_content)
+            
+            scrollbar = self.realtime_chat_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
 
     def clear(self):
         """清空实时聊天记录"""
@@ -588,16 +620,12 @@ class RealtimeChatPage(QWidget):
         try:
             from PyQt6.QtWidgets import QFileDialog
             file_path, _ = QFileDialog.getSaveFileName(
-                self, "保存聊天记录", "", "HTML文件 (*.html);;文本文件 (*.txt)"
+                self, "保存聊天记录", "", "文本文件 (*.txt)"
             )
 
             if file_path:
-                if file_path.endswith('.html'):
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(self.realtime_chat_text.toHtml())
-                else:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(self.realtime_chat_text.toPlainText())
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(self.realtime_chat_text.toPlainText())
                 self.add_message(f"聊天记录已保存到: {file_path}", "system")
         except Exception as e:
             self.add_message(f"保存失败: {str(e)}", "error")
