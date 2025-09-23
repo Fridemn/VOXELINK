@@ -76,9 +76,6 @@ class Message(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
     raw_message: Optional[Any] = None
 
-    target_model: Optional[str] = None
-    source_model: Optional[str] = None
-
     @classmethod
     def from_text(cls, text: str, history_id: str, role: MessageRole = MessageRole.USER):
         return cls(

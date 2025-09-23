@@ -169,9 +169,6 @@ class TextProcess:
                     current_history_id = str(uuid.uuid4())
                     message.history_id = current_history_id
 
-            # 为用户消息设置目标模型
-            message.target_model = model
-
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
 
@@ -221,7 +218,6 @@ class TextProcess:
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
                 components=[MessageComponent(type=MessageType.TEXT, content=raw_response.text)],
                 message_str=raw_response.text,
-                source_model=model,
             )
 
             # 尝试保存AI回复到历史记录
@@ -267,9 +263,6 @@ class TextProcess:
                     # 跳过数据库操作，使用临时ID
                     current_history_id = str(uuid.uuid4())
                     message.history_id = current_history_id
-
-            # 为用户消息设置目标模型
-            message.target_model = model
 
             # 从消息中提取文本内容用于LLM处理
             message_text = self._extract_text_from_message(message)
@@ -321,7 +314,6 @@ class TextProcess:
                 sender=MessageSender(role=MessageRole.ASSISTANT, nickname=model),
                 components=[MessageComponent(type=MessageType.TEXT, content="")],  # 初始为空，稍后填充
                 message_str="",  # 初始为空，稍后填充
-                source_model=model,
             )
 
             # 流式返回结果

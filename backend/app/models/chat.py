@@ -49,8 +49,6 @@ class ChatMessage(Model):
     components = fields.JSONField(default=list, description="消息组件JSON")
     model = fields.CharField(max_length=100, null=True, description="模型名称")
     timestamp = fields.BigIntField(description="消息时间戳")
-    source_model = fields.CharField(max_length=100, null=True, description="源模型")
-    target_model = fields.CharField(max_length=100, null=True, description="目标模型")
 
     class Meta:
         table = "chat_message"
@@ -106,6 +104,4 @@ class ChatMessage(Model):
                 {"type": comp.type, "content": comp.content, "extra": comp.extra} for comp in llm_message.components
             ],
             timestamp=llm_message.timestamp,
-            source_model=llm_message.source_model,
-            target_model=llm_message.target_model,
         )

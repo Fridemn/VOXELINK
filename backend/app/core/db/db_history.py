@@ -144,13 +144,6 @@ class DBMessageHistory:
                     ),
                 }
 
-                if role_value == MessageRole.USER or role_value == MessageRole.SYSTEM:
-                    if message.target_model:
-                        message_data["target_model"] = message.target_model
-                elif role_value == MessageRole.ASSISTANT:
-                    if message.source_model:
-                        message_data["source_model"] = message.source_model
-
                 # 创建新消息记录
                 await ChatMessage.create(**message_data)
 
@@ -273,8 +266,6 @@ class DBMessageHistory:
                         components=components,
                         message_str=msg.content,
                         timestamp=msg.timestamp,
-                        target_model=msg.target_model if role in [MessageRole.USER, MessageRole.SYSTEM] else None,
-                        source_model=msg.source_model if role == MessageRole.ASSISTANT else None,
                     )
                     result.append(message)
                 except Exception as e:
@@ -416,12 +407,6 @@ class DBMessageHistory:
                     continue
                 components.append(self._convert_db_component_to_message_component(comp_data))
 
-            extra_data = {}
-            if message.source_model:
-                extra_data["source_model"] = message.source_model
-            if message.target_model:
-                extra_data["target_model"] = message.target_model
-
             return Message(
                 message_id=str(message.message_id),
                 history_id=str(message.history_id),
@@ -429,7 +414,6 @@ class DBMessageHistory:
                 components=components,
                 message_str=message.content,
                 timestamp=message.timestamp,
-                **extra_data,
             )
 
         except Exception as e:
