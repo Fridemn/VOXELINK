@@ -41,23 +41,26 @@ class RealtimeChatPage(QWidget):
 
         # 标题
         title_label = QLabel("🔄 VOXELINK 实时语音聊天")
-        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        title_label.setObjectName("title_label")
+        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
         # 连接状态
         status_group = QGroupBox("连接状态")
         status_layout = QVBoxLayout(status_group)
 
-        self.realtime_chat_status_label = QLabel("未连接")
-        self.realtime_chat_status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.realtime_chat_status_label = QLabel("⚫ 未连接")
+        self.realtime_chat_status_label.setObjectName("status_disconnected")
         status_layout.addWidget(self.realtime_chat_status_label)
 
         connect_layout = QHBoxLayout()
-        self.realtime_chat_connect_btn = QPushButton("连接")
+        self.realtime_chat_connect_btn = QPushButton("🔗 连接")
+        self.realtime_chat_connect_btn.setObjectName("connect_button")
         self.realtime_chat_connect_btn.clicked.connect(self.connect)
         connect_layout.addWidget(self.realtime_chat_connect_btn)
 
-        self.realtime_chat_disconnect_btn = QPushButton("断开")
+        self.realtime_chat_disconnect_btn = QPushButton("⛔ 断开")
+        self.realtime_chat_disconnect_btn.setObjectName("disconnect_button")
         self.realtime_chat_disconnect_btn.clicked.connect(self.disconnect)
         self.realtime_chat_disconnect_btn.setEnabled(False)
         connect_layout.addWidget(self.realtime_chat_disconnect_btn)
@@ -71,11 +74,11 @@ class RealtimeChatPage(QWidget):
 
         # 录音控制
         record_layout = QHBoxLayout()
-        self.realtime_chat_record_btn = QPushButton("开始实时录音")
+        self.realtime_chat_record_btn = QPushButton("🎤 开始实时录音")
         self.realtime_chat_record_btn.clicked.connect(self.start_recording)
         record_layout.addWidget(self.realtime_chat_record_btn)
 
-        self.realtime_chat_stop_record_btn = QPushButton("停止录音")
+        self.realtime_chat_stop_record_btn = QPushButton("⏹️ 停止录音")
         self.realtime_chat_stop_record_btn.clicked.connect(self.stop_recording)
         self.realtime_chat_stop_record_btn.setEnabled(False)
         self.realtime_chat_stop_record_btn.setStyleSheet("QPushButton { background-color: #e74c3c; color: white; }")
@@ -160,8 +163,8 @@ class RealtimeChatPage(QWidget):
         url = self.config['gui']['server']['realtime_chat_ws_url']
         self.realtime_chat_websocket.open(QUrl(url))
 
-        self.realtime_chat_status_label.setText("连接中...")
-        self.realtime_chat_status_label.setStyleSheet("color: orange; font-weight: bold;")
+        self.realtime_chat_status_label.setText("🟡 连接中...")
+        self.realtime_chat_status_label.setObjectName("status_connecting")
 
     def disconnect(self):
         """断开实时聊天WebSocket连接"""
@@ -171,8 +174,8 @@ class RealtimeChatPage(QWidget):
             self.realtime_chat_is_connected = False
 
         self.stop_recording()
-        self.realtime_chat_status_label.setText("已断开")
-        self.realtime_chat_status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.realtime_chat_status_label.setText("⚫ 已断开")
+        self.realtime_chat_status_label.setObjectName("status_disconnected")
         self.realtime_chat_connect_btn.setEnabled(True)
         self.realtime_chat_disconnect_btn.setEnabled(False)
         self.realtime_chat_record_btn.setEnabled(False)
@@ -180,8 +183,8 @@ class RealtimeChatPage(QWidget):
     def on_connected(self):
         """实时聊天WebSocket连接成功"""
         self.realtime_chat_is_connected = True
-        self.realtime_chat_status_label.setText("已连接")
-        self.realtime_chat_status_label.setStyleSheet("color: green; font-weight: bold;")
+        self.realtime_chat_status_label.setText("🟢 已连接")
+        self.realtime_chat_status_label.setObjectName("status_connected")
         self.realtime_chat_connect_btn.setEnabled(False)
         self.realtime_chat_disconnect_btn.setEnabled(True)
         self.realtime_chat_record_btn.setEnabled(True)
@@ -195,8 +198,8 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_is_connected = False
         # 只更新UI状态，不要调用disconnect方法（避免递归）
         self.stop_recording()
-        self.realtime_chat_status_label.setText("已断开")
-        self.realtime_chat_status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.realtime_chat_status_label.setText("⚫ 已断开")
+        self.realtime_chat_status_label.setObjectName("status_disconnected")
         self.realtime_chat_connect_btn.setEnabled(True)
         self.realtime_chat_disconnect_btn.setEnabled(False)
         self.realtime_chat_record_btn.setEnabled(False)

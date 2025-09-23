@@ -21,7 +21,8 @@ class ServerPage(QWidget):
 
         # 标题
         title_label = QLabel("🚀 VOXELINK 后端服务启动器")
-        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        title_label.setObjectName("title_label")
+        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
         # 服务配置组
@@ -55,15 +56,15 @@ class ServerPage(QWidget):
         # 控制按钮
         button_layout = QHBoxLayout()
 
-        self.start_button = QPushButton("启动服务")
+        self.start_button = QPushButton("▶️ 启动服务")
+        self.start_button.setObjectName("start_button")
         self.start_button.clicked.connect(self.start_server)
-        self.start_button.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; padding: 10px; }")
         button_layout.addWidget(self.start_button)
 
-        self.stop_button = QPushButton("停止服务")
+        self.stop_button = QPushButton("⏹️ 停止服务")
+        self.stop_button.setObjectName("stop_button")
         self.stop_button.clicked.connect(self.stop_server)
         self.stop_button.setEnabled(False)
-        self.stop_button.setStyleSheet("QPushButton { background-color: #f44336; color: white; padding: 10px; }")
         button_layout.addWidget(self.stop_button)
 
         layout.addLayout(button_layout)
@@ -73,8 +74,10 @@ class ServerPage(QWidget):
         output_layout = QVBoxLayout(output_group)
 
         self.output_text = QTextEdit()
+        self.output_text.setObjectName("server_output")
         self.output_text.setReadOnly(True)
-        self.output_text.setFont(QFont("Consolas", 9))
+        self.output_text.setFont(QFont("Consolas", 10))
+        self.output_text.setMinimumHeight(200)
         output_layout.addWidget(self.output_text)
 
         layout.addWidget(output_group)

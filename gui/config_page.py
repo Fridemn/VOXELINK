@@ -22,7 +22,8 @@ class ConfigPage(QWidget):
 
         # 标题
         title_label = QLabel("⚙️ VOXELINK 配置文件管理")
-        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        title_label.setObjectName("title_label")
+        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
         # 滚动区域
