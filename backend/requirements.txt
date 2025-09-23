@@ -48,6 +48,10 @@ pypinyin
 pyopenjtalk>=0.4.1
 g2p_en
 torchaudio
+PyQt6
+PyQt6-WebEngine
+PyQt6-Qt6
+numpy
 modelscope==1.10.0
 sentencepiece
 transformers>=4.43,<=4.50

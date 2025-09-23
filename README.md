@@ -50,10 +50,26 @@ python start.py --enable-tts
 # 启动所有服务
 python start.py --enable-stt --enable-tts
 
-# 指定端口启动
-python start.py --port 9000
+# 启动图形界面 (GUI)
+python start.py --gui
+```
 
-# 开发模式启动 (自动重载)
+#### 方式2: 使用图形界面 (GUI)
+
+如果您更喜欢图形化界面，可以使用内置的GUI启动器：
+
+```bash
+python start.py --gui
+```
+
+GUI界面提供：
+- ✅ 直观的配置选项
+- ✅ 实时服务器输出显示
+- ✅ 一键启动/停止服务
+- ✅ 语音聊天功能，支持实时语音对话
+- ✅ 录音、播放和发送音频
+- ✅ 显示语音识别结果和AI回复
+- ✅ 流式输出和TTS音频播放
 python start.py --reload
 ```
 

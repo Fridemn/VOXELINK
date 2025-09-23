@@ -9,6 +9,7 @@ VOXELINK 统一启动脚本
   python start.py --enable-stt       # 启动后端 + STT
   python start.py --enable-tts       # 启动后端 + TTS
   python start.py --enable-stt --enable-tts  # 启动所有服务
+  python start.py --gui              # 启动 GUI 界面
 
 参数:
   --enable-stt    启用语音识别 (STT) 服务
@@ -16,12 +17,18 @@ VOXELINK 统一启动脚本
   --host HOST     绑定主机 (默认: 0.0.0.0)
   --port PORT     绑定端口 (默认: 8080)
   --reload        启用自动重载 (开发模式)
+  --gui           启动图形用户界面 (GUI)
   --help          显示帮助信息
 """
 
 import sys
 import os
 from pathlib import Path
+
+# 修复Windows下的Unicode编码问题
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 
 # 添加backend目录到Python路径
 backend_dir = Path(__file__).parent / "backend"
@@ -50,6 +57,7 @@ if __name__ == "__main__":
   python start.py --enable-stt --enable-tts # 启动所有服务
   python start.py --port 9000              # 指定端口启动
   python start.py --reload                 # 开发模式启动
+  python start.py --gui                    # 启动 GUI 界面
 
 服务说明:
   后端服务 (Backend): 核心API服务，端口 8080
@@ -87,8 +95,24 @@ API文档:
         action="store_true",
         help="启用自动重载 (开发模式)"
     )
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="启动图形用户界面 (GUI)"
+    )
 
     args = parser.parse_args()
+
+    # 如果指定了 --gui，启动 GUI 界面
+    if args.gui:
+        try:
+            from gui import main as gui_main
+            gui_main()
+            sys.exit(0)
+        except ImportError as e:
+            print(f"❌ 无法启动 GUI: {e}")
+            print("请确保已安装 PyQt6: pip install PyQt6")
+            sys.exit(1)
 
     print("🚀 启动 VOXELINK 后端服务...")
     print(f"📍 主机: {args.host}")

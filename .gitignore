@@ -9,3 +9,6 @@ logs
 database
 
 backend/config.json
+
+__pycache__
+*.pyc
