@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt
 from .server_page import ServerPage
 from .realtime_chat_page import RealtimeChatPage
 from .config_page import ConfigPage
-from .live2d_page import Live2DPage
+from .live2d_desktop_pet import start_desktop_pet
 from .modern_styles import style_manager
 
 # 导入配置
@@ -30,7 +30,6 @@ class VoxelinkGUI(QMainWindow):
         self.server_page = ServerPage(self.config)
         self.realtime_chat_page = RealtimeChatPage(self.config)
         self.config_page = ConfigPage(self.config)
-        self.live2d_page = Live2DPage(self.config)
 
         self.init_ui()
         self.setup_menu_bar()
@@ -71,10 +70,6 @@ class VoxelinkGUI(QMainWindow):
         config_item.setFont(QFont("Segoe UI", 11))
         self.nav_list.addItem(config_item)
 
-        live2d_item = QListWidgetItem("🎭 Live2D 模型")
-        live2d_item.setFont(QFont("Segoe UI", 11))
-        self.nav_list.addItem(live2d_item)
-
         self.nav_list.currentRowChanged.connect(self.change_page)
         main_splitter.addWidget(self.nav_list)
 
@@ -90,13 +85,15 @@ class VoxelinkGUI(QMainWindow):
         self.stacked_widget.addWidget(self.server_page)
         self.stacked_widget.addWidget(self.realtime_chat_page)
         self.stacked_widget.addWidget(self.config_page)
-        self.stacked_widget.addWidget(self.live2d_page)
 
         # 设置默认页面
         self.nav_list.setCurrentRow(0)
 
         # 状态栏
         self.statusBar().showMessage("就绪")
+
+        # 启动Live2D桌宠
+        self.desktop_pet = start_desktop_pet(self.config)
 
     def setup_menu_bar(self):
         """设置菜单栏"""
