@@ -141,40 +141,48 @@ class VADService:
                 "error": f"VAD检测失败: {str(e)}"
             }
 
-    def is_speech_active(self, audio_chunk: bytes, sample_rate: int = 16000) -> Dict[str, Any]:
-        """检测音频块是否包含活跃语音
+    def detect_speech_segments(self, audio_data: bytes, sample_rate: int = 16000) -> Dict[str, Any]:
+        """检测音频中的语音活动段落，支持句子级别的缓冲和整合
 
         Args:
-            audio_chunk: 音频块数据
+            audio_data: 音频数据（PCM格式）
             sample_rate: 采样率
 
         Returns:
-            是否包含语音的检测结果
+            检测结果，包含语音段落和句子状态
         """
-        result = self.detect_speech(audio_chunk, sample_rate)
+        result = self.detect_speech(audio_data, sample_rate)
         if not result["success"]:
             return result
 
-        # 检查是否有足够的语音活动
-        min_speech_duration = self.settings.get("min_chunk_speech_duration", 0.05)  # 最少50ms语音
-        has_speech = result["total_speech_duration"] >= min_speech_duration
+        # 计算音频块时长
+        chunk_duration = len(audio_data) / (sample_rate * 2) if len(audio_data) > 0 else 0
 
-        # 计算音频块的总时长（秒）
-        # 16位PCM，每个样本2字节
-        chunk_duration = len(audio_chunk) / (sample_rate * 2) if len(audio_chunk) > 0 else 0
+        # 计算RMS值用于前端显示
+        audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+        rms = float(np.sqrt(np.mean(audio_np ** 2))) if len(audio_np) > 0 else 0.0
 
-        # 计算置信度（语音时长占音频块时长的比例）
-        confidence = result["total_speech_duration"] / chunk_duration if chunk_duration > 0 else 0
+        # 句子级别的状态管理
+        sentence_config = self.settings.get("sentence_detection", {})
+        max_silence_frames = sentence_config.get("max_silence_frames", 15)  # 默认0.5秒静音
+        silence_threshold = sentence_config.get("silence_threshold", 0.1)  # 静音阈值
 
-        logger.debug(f"VAD检测结果: 语音时长={result['total_speech_duration']:.3f}s, "
-                    f"音频块时长={chunk_duration:.3f}s, 置信度={confidence:.3f}, "
-                    f"是否语音={has_speech}, 语音段数={len(result['speech_segments'])}")
+        # 简化的句子检测逻辑（基于语音段落的连续性）
+        has_speech = result["total_speech_duration"] >= self.settings.get("min_chunk_speech_duration", 0.05)
+        speech_ratio = result["total_speech_duration"] / chunk_duration if chunk_duration > 0 else 0
 
         return {
             "success": True,
-            "is_speech": has_speech,
-            "speech_duration": result["total_speech_duration"],
-            "confidence": confidence
+            "speech_detected": has_speech,
+            "speech_segments": result["speech_segments"],
+            "total_speech_duration": result["total_speech_duration"],
+            "confidence": speech_ratio,
+            "rms": rms,
+            "chunk_duration": chunk_duration,
+            "sentence_info": {
+                "should_end_sentence": speech_ratio < silence_threshold,  # 语音比例低表示可能句子结束
+                "speech_ratio": speech_ratio
+            }
         }
 
 

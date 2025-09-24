@@ -36,11 +36,9 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
 
-        # VAD句子整合状态
-        self.realtime_chat_vad_sentence_buffer = []  # 句子级别的音频缓冲区
+        # VAD句子整合状态 - 简化为基本状态
         self.realtime_chat_vad_in_sentence = False   # 是否正在句子中
-        self.realtime_chat_vad_sentence_silence_frames = 0  # 句子内部的静音帧数
-        self.realtime_chat_vad_total_speech_frames = 0  # 句子中的总语音帧数
+        self.realtime_chat_vad_sentence_buffer = []  # 句子级别的音频缓冲区
 
         self.init_ui()
 
@@ -252,51 +250,28 @@ class RealtimeChatPage(QWidget):
                     self.realtime_chat_voice_status.setText("正在处理")
 
             elif msg_type == "vad_result":
-                # VAD检测结果 - 句子级别整合
                 vad_data = data.get("data", {})
                 is_speech = vad_data.get("is_speech", False)
                 confidence = vad_data.get("confidence", 0.0)
+                rms = vad_data.get("rms", 0.0)
+                sentence_info = vad_data.get("sentence_info", {})
 
-                # 更新VAD显示
-                self.update_vad_display(confidence)
+                self.update_vad_display(confidence, rms)
+
                 self.update_voice_activity(is_speech)
 
-                # 句子级别的VAD逻辑
+                should_end_sentence = sentence_info.get("should_end_sentence", False)
+
                 if is_speech:
                     # 检测到语音
                     if not self.realtime_chat_vad_in_sentence:
                         # 开始新句子
                         self.realtime_chat_vad_in_sentence = True
-                        self.realtime_chat_vad_total_speech_frames = 0
                         self.add_message("开始检测到语音，开始记录句子...", "system")
-
-                    # 累积语音帧数
-                    self.realtime_chat_vad_total_speech_frames += 1
-                    # 重置句子内部静音计数
-                    self.realtime_chat_vad_sentence_silence_frames = 0
-
-                else:
-                    # 没有检测到语音
-                    if self.realtime_chat_vad_in_sentence:
-                        # 在句子中，累积静音帧数
-                        self.realtime_chat_vad_sentence_silence_frames += 1
-
-                        # 检查是否句子结束（静音持续时间足够长）
-                        max_sentence_silence_frames = self.realtime_chat_vad_config.get('max_silence_frames', 15)  # 约0.5秒静音表示句子结束
-                        min_sentence_speech_frames = self.realtime_chat_vad_config.get('min_speech_frames', 5)   # 最少5帧语音
-
-                        if (self.realtime_chat_vad_sentence_silence_frames >= max_sentence_silence_frames and
-                            self.realtime_chat_vad_total_speech_frames >= min_sentence_speech_frames):
-                            # 句子结束，发送整个句子
-                            self.send_sentence_audio()
-                        elif self.realtime_chat_vad_sentence_silence_frames >= max_sentence_silence_frames * 3:
-                            # 静音过长，可能用户停止说话，强制结束句子
-                            if self.realtime_chat_vad_total_speech_frames >= min_sentence_speech_frames:
-                                self.send_sentence_audio()
-                            else:
-                                # 语音太短，丢弃
-                                self.reset_sentence_buffer()
-                    # 如果不在句子中，忽略静音
+                        
+                elif should_end_sentence and self.realtime_chat_vad_in_sentence:
+                    # 后端检测到句子应该结束
+                    self.send_sentence_audio()
 
             elif msg_type == "stream_chunk":
                 # 流式数据块
@@ -475,7 +450,7 @@ class RealtimeChatPage(QWidget):
             self.add_message(f"音频处理错误: {str(e)}", "error")
 
     def check_speech_with_vad(self, audio_bytes):
-        """使用后端VAD服务检查语音活动 - 句子级别整合"""
+        """发送VAD检测请求到后端服务"""
         if not self.realtime_chat_websocket or self.realtime_chat_websocket.state() != QAbstractSocket.SocketState.ConnectedState:
             return
 
@@ -483,7 +458,7 @@ class RealtimeChatPage(QWidget):
             # 转换为base64
             base64_audio = base64.b64encode(audio_bytes).decode('utf-8')
 
-            # 发送VAD检测请求
+            # 发送VAD检测请求 - 简化的逻辑，后端负责句子检测
             message = json.dumps({
                 "action": "vad_check",
                 "data": {
@@ -494,7 +469,7 @@ class RealtimeChatPage(QWidget):
 
             self.realtime_chat_websocket.sendTextMessage(message)
 
-            # 总是累积音频数据到句子缓冲区
+            # 累积音频数据到句子缓冲区（简化版本）
             self.realtime_chat_vad_sentence_buffer.append(audio_bytes)
 
             # 限制句子缓冲区大小，避免内存溢出 (大约10秒的音频)
@@ -555,47 +530,22 @@ class RealtimeChatPage(QWidget):
         """重置句子缓冲区"""
         self.realtime_chat_vad_sentence_buffer.clear()
         self.realtime_chat_vad_in_sentence = False
-        self.realtime_chat_vad_sentence_silence_frames = 0
-        self.realtime_chat_vad_total_speech_frames = 0
 
     def send_pending_audio_chunk(self):
         """发送待处理的音频块"""
         # 这个方法目前简化实现，实际可以根据需要调整
         pass
 
-    def calculate_rms(self, audio_data):
-        """计算实时聊天音频数据的RMS值"""
-        if len(audio_data) == 0:
-            return 0.0
-
-        # 将字节数据转换为16位整数
-        int16_array = []
-        for i in range(0, len(audio_data), 2):
-            if i + 1 < len(audio_data):
-                # 小端字节序
-                sample = int.from_bytes(audio_data[i:i+2], byteorder='little', signed=True)
-                int16_array.append(sample)
-
-        if not int16_array:
-            return 0.0
-
-        # 计算RMS
-        sum_squares = sum(x * x for x in int16_array)
-        rms = (sum_squares / len(int16_array)) ** 0.5
-
-        # 归一化到0-1范围 (16位音频的最大值是32767)
-        return rms / 32767.0
-
-    def update_vad_display(self, confidence):
+    def update_vad_display(self, confidence, rms=None):
         """更新实时聊天VAD显示"""
         # 更新置信度显示
-        self.realtime_chat_vad_rms.setText(f"置信度: {confidence:.3f}")
+        self.realtime_chat_vad_rms.setText(f"RMS: {rms:.3f}" if rms is not None else f"置信度: {confidence:.3f}")
 
         # 更新VAD仪表
         vad_level = min(int(confidence * 100), 100)
         self.realtime_chat_vad_meter.setValue(vad_level)
 
-        # 更新阈值显示 (fsmn-vad使用不同的参数)
+        # 更新阈值显示
         self.realtime_chat_vad_threshold.setText("后端VAD")
 
     def update_voice_activity(self, is_active):

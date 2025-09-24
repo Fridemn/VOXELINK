@@ -158,20 +158,21 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                     logger.debug(f"音频块时长: {expected_chunk_duration:.3f}秒")
 
                     try:
-                        # 执行VAD检测
-                        vad_result = vad_service.is_speech_active(audio_data, sample_rate)
+                        vad_result = vad_service.detect_speech_segments(audio_data, sample_rate)
 
                         if vad_result["success"]:
-                            logger.debug(f"VAD检测成功: is_speech={vad_result['is_speech']}, "
-                                       f"speech_duration={vad_result['speech_duration']:.3f}s, "
-                                       f"confidence={vad_result['confidence']:.3f}")
+                            logger.debug(f"VAD检测成功: is_speech={vad_result['speech_detected']}, "
+                                       f"speech_duration={vad_result['total_speech_duration']:.3f}s, "
+                                       f"confidence={vad_result['confidence']:.3f}, rms={vad_result['rms']:.3f}")
                             await manager.send_json(websocket, {
                                 "success": True,
                                 "type": "vad_result",
                                 "data": {
-                                    "is_speech": vad_result["is_speech"],
-                                    "speech_duration": vad_result["speech_duration"],
-                                    "confidence": vad_result["confidence"]
+                                    "is_speech": vad_result["speech_detected"],
+                                    "speech_duration": vad_result["total_speech_duration"],
+                                    "confidence": vad_result["confidence"],
+                                    "rms": vad_result["rms"],
+                                    "sentence_info": vad_result["sentence_info"]
                                 }
                             })
                         else:
@@ -189,7 +190,6 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                         })
 
                 elif action == "audio":
-                    # 处理音频数据：STT -> 自动Pipeline - 如果正在处理响应，忽略音频数据
                     if session_state.get("is_processing_response", False):
                         logger.debug("正在处理响应，忽略音频数据")
                         continue
