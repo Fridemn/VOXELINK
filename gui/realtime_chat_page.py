@@ -35,6 +35,13 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_vad_config = self.config['gui']['vad']['realtime_chat']
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
+
+        # VAD句子整合状态
+        self.realtime_chat_vad_sentence_buffer = []  # 句子级别的音频缓冲区
+        self.realtime_chat_vad_in_sentence = False   # 是否正在句子中
+        self.realtime_chat_vad_sentence_silence_frames = 0  # 句子内部的静音帧数
+        self.realtime_chat_vad_total_speech_frames = 0  # 句子中的总语音帧数
+
         self.init_ui()
 
     def init_ui(self):
@@ -244,6 +251,53 @@ class RealtimeChatPage(QWidget):
                     self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
                     self.realtime_chat_voice_status.setText("正在处理")
 
+            elif msg_type == "vad_result":
+                # VAD检测结果 - 句子级别整合
+                vad_data = data.get("data", {})
+                is_speech = vad_data.get("is_speech", False)
+                confidence = vad_data.get("confidence", 0.0)
+
+                # 更新VAD显示
+                self.update_vad_display(confidence)
+                self.update_voice_activity(is_speech)
+
+                # 句子级别的VAD逻辑
+                if is_speech:
+                    # 检测到语音
+                    if not self.realtime_chat_vad_in_sentence:
+                        # 开始新句子
+                        self.realtime_chat_vad_in_sentence = True
+                        self.realtime_chat_vad_total_speech_frames = 0
+                        self.add_message("开始检测到语音，开始记录句子...", "system")
+
+                    # 累积语音帧数
+                    self.realtime_chat_vad_total_speech_frames += 1
+                    # 重置句子内部静音计数
+                    self.realtime_chat_vad_sentence_silence_frames = 0
+
+                else:
+                    # 没有检测到语音
+                    if self.realtime_chat_vad_in_sentence:
+                        # 在句子中，累积静音帧数
+                        self.realtime_chat_vad_sentence_silence_frames += 1
+
+                        # 检查是否句子结束（静音持续时间足够长）
+                        max_sentence_silence_frames = self.realtime_chat_vad_config.get('max_silence_frames', 15)  # 约0.5秒静音表示句子结束
+                        min_sentence_speech_frames = self.realtime_chat_vad_config.get('min_speech_frames', 5)   # 最少5帧语音
+
+                        if (self.realtime_chat_vad_sentence_silence_frames >= max_sentence_silence_frames and
+                            self.realtime_chat_vad_total_speech_frames >= min_sentence_speech_frames):
+                            # 句子结束，发送整个句子
+                            self.send_sentence_audio()
+                        elif self.realtime_chat_vad_sentence_silence_frames >= max_sentence_silence_frames * 3:
+                            # 静音过长，可能用户停止说话，强制结束句子
+                            if self.realtime_chat_vad_total_speech_frames >= min_sentence_speech_frames:
+                                self.send_sentence_audio()
+                            else:
+                                # 语音太短，丢弃
+                                self.reset_sentence_buffer()
+                    # 如果不在句子中，忽略静音
+
             elif msg_type == "stream_chunk":
                 # 流式数据块
                 chunk_data = data.get("data", {})
@@ -336,6 +390,10 @@ class RealtimeChatPage(QWidget):
             self.add_message("开始实时录音...", "system")
             self.realtime_chat_is_recording = True
             self.realtime_chat_is_processing = False
+
+            # 重置句子缓冲区状态
+            self.reset_sentence_buffer()
+
             self.realtime_chat_record_btn.setEnabled(False)
             self.realtime_chat_stop_record_btn.setEnabled(True)
             self.realtime_chat_processing_status.setText("正在录音")
@@ -375,6 +433,15 @@ class RealtimeChatPage(QWidget):
                 self.realtime_chat_stream.close()
             if hasattr(self, 'realtime_chat_pyaudio') and self.realtime_chat_pyaudio:
                 self.realtime_chat_pyaudio.terminate()
+
+            # 如果有未完成的句子，发送出去
+            if self.realtime_chat_vad_in_sentence and self.realtime_chat_vad_sentence_buffer:
+                self.add_message("录音停止，发送未完成的句子...", "system")
+                self.send_sentence_audio()
+            else:
+                # 清空句子缓冲区
+                self.reset_sentence_buffer()
+
             self.realtime_chat_record_btn.setEnabled(True)
             self.realtime_chat_stop_record_btn.setEnabled(False)
             self.realtime_chat_processing_status.setText("录音已停止")
@@ -401,27 +468,100 @@ class RealtimeChatPage(QWidget):
             audio_bytes = self.realtime_chat_stream.read(self.realtime_chat_vad_config['chunk_size'], exception_on_overflow=False)
 
             if len(audio_bytes) > 0:
-                # 计算RMS值用于VAD
-                rms = self.calculate_rms(audio_bytes)
-                self.update_vad_display(rms)
-
-                # 简单的VAD逻辑
-                is_speech = rms > self.realtime_chat_vad_config['vad_threshold']
-                self.update_voice_activity(is_speech)
-
-                # 如果检测到语音，开始收集音频数据
-                if is_speech:
-                    self.realtime_chat_speech_frames.append(audio_bytes)
-                    self.realtime_chat_silence_frames = 0
-                else:
-                    if self.realtime_chat_speech_frames:
-                        self.realtime_chat_silence_frames += 1
-                        # 如果静音持续时间超过阈值，发送已收集的音频
-                        if self.realtime_chat_silence_frames >= self.realtime_chat_vad_config['max_silence_frames']:
-                            self.send_audio_chunk()
+                # 调用后端VAD服务进行语音检测
+                self.check_speech_with_vad(audio_bytes)
 
         except Exception as e:
             self.add_message(f"音频处理错误: {str(e)}", "error")
+
+    def check_speech_with_vad(self, audio_bytes):
+        """使用后端VAD服务检查语音活动 - 句子级别整合"""
+        if not self.realtime_chat_websocket or self.realtime_chat_websocket.state() != QAbstractSocket.SocketState.ConnectedState:
+            return
+
+        try:
+            # 转换为base64
+            base64_audio = base64.b64encode(audio_bytes).decode('utf-8')
+
+            # 发送VAD检测请求
+            message = json.dumps({
+                "action": "vad_check",
+                "data": {
+                    "audio_data": base64_audio,
+                    "sample_rate": self.realtime_chat_vad_config['sample_rate']
+                }
+            })
+
+            self.realtime_chat_websocket.sendTextMessage(message)
+
+            # 总是累积音频数据到句子缓冲区
+            self.realtime_chat_vad_sentence_buffer.append(audio_bytes)
+
+            # 限制句子缓冲区大小，避免内存溢出 (大约10秒的音频)
+            max_sentence_buffer_size = int(10.0 * self.realtime_chat_vad_config['sample_rate'] * 2 / self.realtime_chat_vad_config['chunk_size'])
+            if len(self.realtime_chat_vad_sentence_buffer) > max_sentence_buffer_size:
+                # 移除旧的音频数据，但保持最近的1秒用于连续性
+                keep_frames = int(1.0 * self.realtime_chat_vad_config['sample_rate'] * 2 / self.realtime_chat_vad_config['chunk_size'])
+                self.realtime_chat_vad_sentence_buffer = self.realtime_chat_vad_sentence_buffer[-keep_frames:]
+
+        except Exception as e:
+            self.add_message(f"VAD检测请求失败: {str(e)}", "error")
+
+    def send_sentence_audio(self):
+        """发送完整的句子音频到服务器"""
+        if not self.realtime_chat_vad_sentence_buffer:
+            self.reset_sentence_buffer()
+            return
+
+        if not self.realtime_chat_is_connected or self.realtime_chat_is_processing:
+            self.reset_sentence_buffer()
+            return
+
+        try:
+            # 设置处理状态，防止新录音
+            self.realtime_chat_is_processing = True
+            self.realtime_chat_processing_status.setText("正在处理语音...")
+            self.realtime_chat_processing_status.setStyleSheet("color: orange; font-weight: bold;")
+
+            # 合并句子中的所有音频数据
+            combined_audio = b''.join(self.realtime_chat_vad_sentence_buffer)
+
+            # 转换为base64
+            base64_audio = base64.b64encode(combined_audio).decode('utf-8')
+
+            # 发送到WebSocket
+            message = json.dumps({
+                "action": "audio",
+                "data": {
+                    "audio_data": base64_audio,
+                    "format": "pcm"
+                }
+            })
+
+            self.realtime_chat_websocket.sendTextMessage(message)
+            self.add_message("完整句子已发送，等待处理...", "system")
+
+            # 重置句子缓冲区
+            self.reset_sentence_buffer()
+
+        except Exception as e:
+            self.add_message(f"发送句子音频失败: {str(e)}", "error")
+            self.realtime_chat_is_processing = False
+            self.realtime_chat_processing_status.setText("等待语音输入")
+            self.realtime_chat_processing_status.setStyleSheet("color: blue; font-weight: bold;")
+            self.reset_sentence_buffer()
+
+    def reset_sentence_buffer(self):
+        """重置句子缓冲区"""
+        self.realtime_chat_vad_sentence_buffer.clear()
+        self.realtime_chat_vad_in_sentence = False
+        self.realtime_chat_vad_sentence_silence_frames = 0
+        self.realtime_chat_vad_total_speech_frames = 0
+
+    def send_pending_audio_chunk(self):
+        """发送待处理的音频块"""
+        # 这个方法目前简化实现，实际可以根据需要调整
+        pass
 
     def calculate_rms(self, audio_data):
         """计算实时聊天音频数据的RMS值"""
@@ -446,18 +586,17 @@ class RealtimeChatPage(QWidget):
         # 归一化到0-1范围 (16位音频的最大值是32767)
         return rms / 32767.0
 
-    def update_vad_display(self, rms):
+    def update_vad_display(self, confidence):
         """更新实时聊天VAD显示"""
-        # 更新RMS显示
-        self.realtime_chat_vad_rms.setText(f"RMS: {rms:.3f}")
+        # 更新置信度显示
+        self.realtime_chat_vad_rms.setText(f"置信度: {confidence:.3f}")
 
         # 更新VAD仪表
-        vad_level = min(int(rms * 100), 100)
+        vad_level = min(int(confidence * 100), 100)
         self.realtime_chat_vad_meter.setValue(vad_level)
 
-        # 更新阈值显示
-        threshold = self.realtime_chat_vad_config['vad_threshold']
-        self.realtime_chat_vad_threshold.setText(f"阈值: {threshold:.3f}")
+        # 更新阈值显示 (fsmn-vad使用不同的参数)
+        self.realtime_chat_vad_threshold.setText("后端VAD")
 
     def update_voice_activity(self, is_active):
         """更新实时聊天语音活动指示器"""

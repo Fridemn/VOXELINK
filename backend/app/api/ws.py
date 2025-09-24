@@ -10,6 +10,7 @@ from typing import Dict, Any, List
 from pathlib import Path
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ..services.asr_service import get_asr_service
+from ..services.vad_service import get_vad_service
 
 from ..core.pipeline.chat_process import chat_process
 
@@ -83,6 +84,7 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
 
         # 获取服务实例
         asr_service = get_asr_service()
+        vad_service = get_vad_service()
 
         # 发送连接成功消息
         await manager.send_json(websocket, {
@@ -100,7 +102,8 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
             "skip_db": False,
             "check_voiceprint": False,
             "only_register_user": False,
-            "identify_unregistered": True
+            "identify_unregistered": True,
+            "is_processing_response": False  # 是否正在处理响应（STT->LLM->TTS）
         }
 
         while True:
@@ -130,8 +133,67 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                         "config": session_state
                     })
 
+                elif action == "vad_check":
+                    # VAD语音活动检测 - 如果正在处理响应，忽略VAD检测
+                    if session_state.get("is_processing_response", False):
+                        logger.debug("正在处理响应，忽略VAD检测请求")
+                        continue
+
+                    audio_data_base64 = message.get("data", {}).get("audio_data", "")
+                    sample_rate = message.get("data", {}).get("sample_rate", 16000)
+
+                    if not audio_data_base64:
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": "未接收到音频数据"
+                        })
+                        continue
+
+                    # 解码音频数据
+                    audio_data = base64.b64decode(audio_data_base64)
+                    logger.debug(f"接收到VAD检测音频数据，大小: {len(audio_data)} 字节, 采样率: {sample_rate}")
+
+                    # 检查音频数据大小是否合理
+                    expected_chunk_duration = len(audio_data) / (sample_rate * 2)  # 16位PCM
+                    logger.debug(f"音频块时长: {expected_chunk_duration:.3f}秒")
+
+                    try:
+                        # 执行VAD检测
+                        vad_result = vad_service.is_speech_active(audio_data, sample_rate)
+
+                        if vad_result["success"]:
+                            logger.debug(f"VAD检测成功: is_speech={vad_result['is_speech']}, "
+                                       f"speech_duration={vad_result['speech_duration']:.3f}s, "
+                                       f"confidence={vad_result['confidence']:.3f}")
+                            await manager.send_json(websocket, {
+                                "success": True,
+                                "type": "vad_result",
+                                "data": {
+                                    "is_speech": vad_result["is_speech"],
+                                    "speech_duration": vad_result["speech_duration"],
+                                    "confidence": vad_result["confidence"]
+                                }
+                            })
+                        else:
+                            logger.error(f"VAD检测失败: {vad_result['error']}")
+                            await manager.send_json(websocket, {
+                                "success": False,
+                                "error": f"VAD检测失败: {vad_result['error']}"
+                            })
+
+                    except Exception as e:
+                        logger.error(f"VAD检测异常: {str(e)}", exc_info=True)
+                        await manager.send_json(websocket, {
+                            "success": False,
+                            "error": f"VAD检测异常: {str(e)}"
+                        })
+
                 elif action == "audio":
-                    # 处理音频数据：STT -> 自动Pipeline
+                    # 处理音频数据：STT -> 自动Pipeline - 如果正在处理响应，忽略音频数据
+                    if session_state.get("is_processing_response", False):
+                        logger.debug("正在处理响应，忽略音频数据")
+                        continue
+
                     audio_data_base64 = message.get("data", {}).get("audio_data", "")
                     audio_format = message.get("data", {}).get("format", "wav")
 
@@ -160,6 +222,9 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
 
                         recognized_text = asr_result["text"]
                         logger.info(f"STT成功: '{recognized_text}'")
+
+                        # 设置正在处理响应的标志，防止新的VAD和STT请求
+                        session_state["is_processing_response"] = True
 
                         # 发送STT结果
                         await manager.send_json(websocket, {
@@ -210,6 +275,14 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                         if chunk_str.startswith('data: '):
                                             data_content = chunk_str[6:].strip()
                                             if data_content == '[DONE]':
+                                                # 流式响应完成，发送complete消息并清除处理状态
+                                                await manager.send_json(websocket, {
+                                                    "success": True,
+                                                    "type": "complete",
+                                                    "message": "流式Pipeline处理完成"
+                                                })
+                                                session_state["is_processing_response"] = False
+                                                logger.info("流式Pipeline处理完成，已清除处理状态标志")
                                                 break
                                             try:
                                                 chunk_data = json.loads(data_content)
@@ -236,6 +309,14 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                         if chunk_str.startswith('data: '):
                                             data_content = chunk_str[6:].strip()
                                             if data_content == '[DONE]':
+                                                # 流式响应完成，发送complete消息并清除处理状态
+                                                await manager.send_json(websocket, {
+                                                    "success": True,
+                                                    "type": "complete",
+                                                    "message": "流式Pipeline处理完成"
+                                                })
+                                                session_state["is_processing_response"] = False
+                                                logger.info("流式Pipeline处理完成，已清除处理状态标志")
                                                 break
                                             try:
                                                 chunk_data = json.loads(data_content)
@@ -255,7 +336,14 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                     "data": response
                                 })
 
-                            logger.info("自动Pipeline处理完成")
+                            # 发送处理完成消息，并清除处理状态标志
+                            await manager.send_json(websocket, {
+                                "success": True,
+                                "type": "complete",
+                                "message": "Pipeline处理完成"
+                            })
+                            session_state["is_processing_response"] = False
+                            logger.info("自动Pipeline处理完成，已清除处理状态标志")
                         else:
                             logger.info("STT结果为空，跳过Pipeline处理")
                             await manager.send_json(websocket, {
@@ -266,6 +354,8 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                     "message": "STT结果为空"
                                 }
                             })
+                            # STT结果为空，清除处理状态标志
+                            session_state["is_processing_response"] = False
 
                     except Exception as e:
                         logger.error(f"Pipeline处理失败: {str(e)}", exc_info=True)
@@ -273,6 +363,8 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                             "success": False,
                             "error": f"Pipeline处理失败: {str(e)}"
                         })
+                        # 处理失败，清除处理状态标志
+                        session_state["is_processing_response"] = False
 
                 else:
                     await manager.send_json(websocket, {

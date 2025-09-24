@@ -180,6 +180,17 @@ DEFAULT_CONFIG["characters"] = {
     }
 }
 
+# VAD配置 (fsmn-vad参数)
+DEFAULT_CONFIG["vad"] = {
+    "threshold": get_config_value("vad.threshold", float, 0.3),  # VAD阈值 - 降低阈值以提高检测灵敏度
+    "min_speech_duration_ms": get_config_value("vad.min_speech_duration_ms", int, 100),  # 最短语音持续时间 - 降低以检测短语音
+    "max_speech_duration_s": get_config_value("vad.max_speech_duration_s", float, 30),  # 最长语音持续时间
+    "min_silence_duration_ms": get_config_value("vad.min_silence_duration_ms", int, 300),  # 最短静音持续时间 - 降低以更快响应
+    "window_size_samples": get_config_value("vad.window_size_samples", int, 1024),  # 窗口大小
+    "speech_pad_ms": get_config_value("vad.speech_pad_ms", int, 30),  # 语音填充时间
+    "min_chunk_speech_duration": get_config_value("vad.min_chunk_speech_duration", float, 0.05),  # 音频块最少语音时长 - 降低以检测更短的语音
+}
+
 # GUI配置
 DEFAULT_CONFIG["gui"] = {
     "models": {
