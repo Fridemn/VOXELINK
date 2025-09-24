@@ -18,7 +18,6 @@ datasets~=3.3.2
 Pillow~=11.1.0
 simplejson~=3.20.1
 sortedcontainers~=2.4.0
-silero-vad~=5.1.2
 
 numpy~=2.2.3
 modelscope~=1.23.2
@@ -29,7 +28,6 @@ datasets~=3.3.2
 Pillow~=11.1.0
 simplejson~=3.20.1
 sortedcontainers~=2.4.0
-silero-vad~=5.1.2
 
 --no-binary=opencc
 scipy

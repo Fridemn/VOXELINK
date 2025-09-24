@@ -39,14 +39,9 @@ class ASRService:
         """初始化语音识别服务"""
         self.settings = get_stt_settings()
         self.model = None
-        self.vad = None
         
         # 初始化ASR模型
         self._init_asr_model()
-        
-        # 初始化VAD
-        if self.settings.get("use_vad", True):
-            self._init_vad()
     
     def _init_asr_model(self):
         """初始化ASR模型"""
@@ -86,26 +81,6 @@ class ASRService:
         except Exception as e:
             logger.error(f"初始化ASR模型失败: {str(e)}", exc_info=True)
             self.model = None  # 确保模型为None，这样recognize方法会报错
-    
-    def _init_vad(self):
-        """初始化VAD"""
-        try:
-            import torch
-            
-            logger.info("正在加载VAD模型")
-            self.vad_model, utils = torch.hub.load(
-                repo_or_dir='snakers4/silero-vad',
-                model='silero_vad',
-                onnx=False
-            )
-            self.get_speech_timestamps = utils[0]
-            self.threshold = self.settings.get("vad_threshold", 0.3)  # 语音检测阈值
-            self.min_speech_duration = self.settings.get("vad_min_speech_duration", 0.25)  # 最小语音持续时间(秒)
-            logger.info("VAD模型加载完成")
-            
-        except Exception as e:
-            logger.error(f"初始化VAD失败: {str(e)}", exc_info=True)
-            self.vad_model = None
     
     def _is_gpu_available(self) -> bool:
         """检查GPU是否可用"""
