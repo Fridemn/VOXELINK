@@ -34,17 +34,8 @@ def get_vad_settings() -> Dict[str, Any]:
         from .. import app_config
         return app_config.get("vad", {})
     except Exception as e:
-        logger.warning(f"无法加载VAD配置，使用默认配置: {e}")
-        return {
-            "threshold": 0.3,
-            "min_speech_duration_ms": 100,
-            "max_speech_duration_s": 30,
-            "min_silence_duration_ms": 300,
-            "window_size_samples": 1024,
-            "speech_pad_ms": 30,
-            "merge_vad": True,
-            "merge_length_s": 15,
-        }
+        logger.warning(f"无法加载VAD配置: {e}")
+        return {}
 
 
 # 配置日志
