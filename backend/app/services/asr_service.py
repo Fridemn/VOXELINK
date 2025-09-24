@@ -156,88 +156,42 @@ class ASRService:
             return {"success": False, "error": "ASR模型未初始化"}
 
         try:
-            # 如果明确指定了PCM格式，则直接使用PCM数据识别
-            if audio_format.lower() == "pcm":
-                return self._recognize_pcm(audio_data)
+            # FunASR支持直接接收numpy数组，避免格式转换
+            if audio_format.lower() in ["auto", "pcm"]:
+                # 假设音频数据是16-bit PCM格式，转换为float32并归一化到[-1, 1]
+                audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+                logger.info(f"直接使用numpy数组识别，样本数: {len(audio_np)}")
                 
-            # 否则使用文件方式识别（WAV格式）
-            import wave
-            import struct
-            
-            # 假设音频是16kHz, 16-bit, 单声道的原始PCM数据
-            temp_path = tempfile.mktemp(suffix=".wav")
-            is_wav_format = False
-            
-            # 检查是否已经是WAV格式
-            try:
-                with io.BytesIO(audio_data) as audio_io:
-                    # 检查WAV文件魔数(RIFF头和WAVE标识)
-                    riff_header = audio_io.read(4)
-                    audio_io.seek(8)
-                    wave_header = audio_io.read(4)
-                    
-                    if riff_header == b'RIFF' and wave_header == b'WAVE':
-                        logger.info("接收到WAV格式音频数据 (检测到RIFF/WAVE标识)，无需转换")
-                        with open(temp_path, 'wb') as f:
-                            f.write(audio_data)
-                        is_wav_format = True
-            except Exception as e:
-                logger.debug(f"检查WAV标识时发生错误: {str(e)}")
-            
-            # 如果不是WAV格式，则尝试使用wave库打开
-            if not is_wav_format:
-                try:
-                    with wave.open(io.BytesIO(audio_data), 'rb') as wav_check:
-                        # 如果能打开，说明已经是WAV格式，直接写入文件
-                        logger.info("接收到WAV格式音频数据 (wave库成功打开)，无需转换")
-                        with open(temp_path, 'wb') as f:
-                            f.write(audio_data)
-                        is_wav_format = True
-                except Exception as e:
-                    logger.debug(f"使用wave库打开WAV数据时发生错误: {str(e)}")
-            
-            # 如果仍不是WAV格式，则创建新的WAV文件
-            if not is_wav_format:
-                # 不是WAV格式，创建一个新的WAV文件
-                logger.info("音频数据不是WAV格式，转换为WAV格式")
-                with wave.open(temp_path, 'wb') as wav_file:
-                    wav_file.setnchannels(1)  # 单声道
-                    wav_file.setsampwidth(2)  # 16-bit
-                    wav_file.setframerate(16000)  # 16kHz
-                    
-                    # 如果输入是原始PCM数据，直接写入
-                    if len(audio_data) % 2 == 0:  # 检查是否是偶数字节（16位样本）
-                        wav_file.writeframes(audio_data)
-                    else:
-                        # 如果不是正确的PCM格式，尝试转换
-                        logger.warning("音频数据格式异常，尝试转换")
-                        # 假设是Float32格式，转换为Int16
-                        try:
-                            import numpy as np
-                            samples = np.frombuffer(audio_data, dtype=np.float32)
-                            samples = (samples * 32767).astype(np.int16)
-                            wav_file.writeframes(samples.tobytes())
-                        except:
-                            # 如果转换失败，记录日志但仍然尝试使用原始数据
-                            logger.error("音频数据转换失败，使用原始数据")
-                            wav_file.writeframes(audio_data)
-            
-            # 检查临时文件大小
-            file_size = os.path.getsize(temp_path)
-            logger.info(f"临时WAV文件大小: {file_size} 字节，是否为原始WAV格式: {is_wav_format}")
-            
-            # 执行识别
-            result = self.model.generate(
-                input=temp_path,
-                language="zh",  # 强制指定中文
-                use_itn=False,   # 不使用逆文本规范化，保持原始输出
-                batch_size_s=60,  # 动态批处理
-                merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
-                merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
-            )
-            
-            # 删除临时文件
-            os.unlink(temp_path)
+                # 执行识别，使用numpy数组作为输入
+                result = self.model.generate(
+                    input=audio_np,
+                    fs=16000,  # 采样率16kHz
+                    language="zh",  # 强制指定中文
+                    use_itn=False,   # 不使用逆文本规范化，保持原始输出
+                    batch_size_s=60,  # 动态批处理
+                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
+                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
+                )
+            else:
+                # 对于其他格式，如果需要文件方式，使用临时文件
+                temp_path = tempfile.mktemp(suffix=f".{audio_format}")
+                with open(temp_path, 'wb') as f:
+                    f.write(audio_data)
+                
+                logger.info(f"使用临时文件识别，格式: {audio_format}")
+                
+                # 执行识别
+                result = self.model.generate(
+                    input=temp_path,
+                    language="zh",  # 强制指定中文
+                    use_itn=False,   # 不使用逆文本规范化，保持原始输出
+                    batch_size_s=60,  # 动态批处理
+                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
+                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
+                )
+                
+                # 删除临时文件
+                os.unlink(temp_path)
             
             # 提取识别文本 - SenseVoice结果格式
             if isinstance(result, list) and len(result) > 0:
@@ -260,104 +214,7 @@ class ASRService:
                 "success": False,
                 "error": f"语音识别失败: {str(e)}"
             }
-    def _recognize_pcm(self, pcm_data: bytes) -> Dict[str, Any]:
-        """直接识别PCM音频数据，避免WAV格式转换
 
-        Args:
-            pcm_data: PCM格式的音频数据
-
-        Returns:
-            识别结果
-        """
-        try:
-            import wave
-            
-            # 创建临时文件但直接写入PCM数据
-            # 注意：这种方式不写入WAV头，直接使用原始PCM数据
-            temp_path = tempfile.mktemp(suffix=".pcm")
-            
-            with open(temp_path, 'wb') as f:
-                f.write(pcm_data)
-            
-            # 记录PCM文件大小
-            file_size = os.path.getsize(temp_path)
-            logger.info(f"临时PCM文件大小: {file_size} 字节，直接PCM识别")
-            
-            # FunASR的一些实现可能支持直接处理PCM数据，但需要额外的参数
-            # 这里我们尝试两种方式
-            try:
-                # 方式1: 尝试直接使用PCM文件路径，并指定额外参数
-                result = self.model.generate(
-                    input=temp_path, 
-                    audio_format="pcm",
-                    sample_rate=16000,
-                    bits_per_sample=16,
-                    channels=1,
-                    language="zh",  # 强制指定中文
-                    use_itn=False,   # 不使用逆文本规范化
-                    batch_size_s=60,  # 动态批处理
-                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
-                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
-                )
-            except Exception as e:
-                logger.warning(f"直接PCM识别失败，尝试转换为WAV: {str(e)}")
-                # 方式2: 如果不支持，则在内存中快速转换为WAV格式
-                wav_path = temp_path + ".wav"
-                
-                # 使用wave库创建WAV文件
-                with wave.open(wav_path, 'wb') as wav_file:
-                    wav_file.setnchannels(1)  # 单声道
-                    wav_file.setsampwidth(2)  # 16-bit
-                    wav_file.setframerate(16000)  # 16kHz
-                    
-                    # 读取PCM数据并写入
-                    with open(temp_path, 'rb') as pcm_file:
-                        pcm_data = pcm_file.read()
-                        wav_file.writeframes(pcm_data)
-                
-                # 使用生成的WAV文件识别
-                result = self.model.generate(
-                    input=wav_path,
-                    language="zh",  # 强制指定中文
-                    use_itn=False,   # 不使用逆文本规范化
-                    batch_size_s=60,  # 动态批处理
-                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
-                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
-                )
-                
-                # 删除临时WAV文件
-                try:
-                    os.unlink(wav_path)
-                except:
-                    pass
-            
-            # 删除临时PCM文件
-            try:
-                os.unlink(temp_path)
-            except:
-                pass
-            
-            # 提取识别文本 - SenseVoice结果格式
-            if isinstance(result, list) and len(result) > 0:
-                raw_text = result[0].get("text", "")
-                # 清理SenseVoice的特殊标记，只保留实际文本
-                text = self._clean_sensevoice_output(raw_text)
-                logger.info(f"PCM直接识别结果: {text}")
-            else:
-                text = ""
-                logger.warning("PCM识别未获取到结果或结果格式异常")
-            
-            return {
-                "success": True,
-                "text": text
-            }
-            
-        except Exception as e:
-            logger.error(f"PCM音频识别失败: {str(e)}", exc_info=True)
-            return {
-                "success": False,
-                "error": f"PCM音频识别失败: {str(e)}"
-            }
     
     def decode_audio(self, base64_audio: str) -> Optional[bytes]:
         """解码Base64编码的音频数据
