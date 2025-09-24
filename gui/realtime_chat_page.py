@@ -30,7 +30,6 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_audio_timer = None
         self.realtime_chat_audio_queue = []
         self.realtime_chat_is_playing = False
-        self.realtime_chat_is_processing_response = False
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
 
@@ -214,11 +213,6 @@ class RealtimeChatPage(QWidget):
                     self.add_message("正在生成回复...", "system")
                     self.realtime_chat_current_llm_response = ""
                     self.realtime_chat_is_streaming = False
-                    # 开始处理响应阶段，禁用录音
-                    self.realtime_chat_is_processing_response = True
-                    # 更新UI状态为处理中
-                    self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
-                    self.realtime_chat_voice_status.setText("正在处理")
 
             elif msg_type == "stream_chunk":
                 # 流式数据块
@@ -226,11 +220,6 @@ class RealtimeChatPage(QWidget):
 
                 if chunk_data.get("transcription"):
                     self.add_message(f"语音识别: {chunk_data['transcription']}", "stt")
-                    # 开始处理响应阶段，禁用录音
-                    self.realtime_chat_is_processing_response = True
-                    # 更新UI状态为处理中
-                    self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
-                    self.realtime_chat_voice_status.setText("正在处理")
 
                 if chunk_data.get("text"):
                     self.realtime_chat_current_llm_response += chunk_data["text"]
@@ -253,11 +242,6 @@ class RealtimeChatPage(QWidget):
 
                 if response_data.get("response_text"):
                     self.add_message(response_data["response_text"], "llm")
-                    # 开始处理响应阶段，禁用录音
-                    self.realtime_chat_is_processing_response = True
-                    # 更新UI状态为处理中
-                    self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
-                    self.realtime_chat_voice_status.setText("正在处理")
 
                 if response_data.get("audio"):
                     audio_data = base64.b64decode(response_data["audio"])
@@ -376,10 +360,6 @@ class RealtimeChatPage(QWidget):
         if self.realtime_chat_is_processing:
             return
 
-        # 如果正在处理响应（从STT结束到TTS播放结束），暂时禁用录音
-        if self.realtime_chat_is_processing_response:
-            return
-
         try:
             import pyaudio
 
@@ -487,7 +467,6 @@ class RealtimeChatPage(QWidget):
 
         # 如果音频队列为空，说明整个TTS响应播放完成，重新启用录音
         if not self.realtime_chat_audio_queue:
-            self.realtime_chat_is_processing_response = False
             # 恢复UI状态
             self.realtime_chat_voice_indicator.setStyleSheet("color: #bdc3c7; font-size: 20px;")
             self.realtime_chat_voice_status.setText("未检测到语音")
