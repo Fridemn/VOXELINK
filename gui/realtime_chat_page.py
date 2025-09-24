@@ -25,14 +25,12 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_is_recording = False
         self.realtime_chat_is_processing = False
         self.realtime_chat_speech_frames = []
-        self.realtime_chat_silence_frames = 0
         self.realtime_chat_pyaudio = None
         self.realtime_chat_stream = None
         self.realtime_chat_audio_timer = None
         self.realtime_chat_audio_queue = []
         self.realtime_chat_is_playing = False
         self.realtime_chat_is_processing_response = False
-        self.realtime_chat_vad_config = self.config['gui']['vad']['realtime_chat']
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
 
@@ -216,7 +214,7 @@ class RealtimeChatPage(QWidget):
                     self.add_message("正在生成回复...", "system")
                     self.realtime_chat_current_llm_response = ""
                     self.realtime_chat_is_streaming = False
-                    # 开始处理响应阶段，禁用VAD和STT
+                    # 开始处理响应阶段，禁用录音
                     self.realtime_chat_is_processing_response = True
                     # 更新UI状态为处理中
                     self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
@@ -228,7 +226,7 @@ class RealtimeChatPage(QWidget):
 
                 if chunk_data.get("transcription"):
                     self.add_message(f"语音识别: {chunk_data['transcription']}", "stt")
-                    # 开始处理响应阶段，禁用VAD和STT
+                    # 开始处理响应阶段，禁用录音
                     self.realtime_chat_is_processing_response = True
                     # 更新UI状态为处理中
                     self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
@@ -255,7 +253,7 @@ class RealtimeChatPage(QWidget):
 
                 if response_data.get("response_text"):
                     self.add_message(response_data["response_text"], "llm")
-                    # 开始处理响应阶段，禁用VAD和STT
+                    # 开始处理响应阶段，禁用录音
                     self.realtime_chat_is_processing_response = True
                     # 更新UI状态为处理中
                     self.realtime_chat_voice_indicator.setStyleSheet("color: #f39c12; font-size: 20px;")
@@ -323,14 +321,14 @@ class RealtimeChatPage(QWidget):
             self.realtime_chat_processing_status.setText("正在录音")
             self.realtime_chat_processing_status.setStyleSheet("color: green; font-weight: bold;")
 
-            # 初始化PyAudio
+            # 初始化PyAudio - 使用固定参数
             self.realtime_chat_pyaudio = pyaudio.PyAudio()
             self.realtime_chat_stream = self.realtime_chat_pyaudio.open(
                 format=pyaudio.paInt16,
-                channels=self.realtime_chat_vad_config['channels'],
-                rate=self.realtime_chat_vad_config['sample_rate'],
+                channels=1,  # 单声道
+                rate=16000,  # 16kHz采样率
                 input=True,
-                frames_per_buffer=self.realtime_chat_vad_config['chunk_size']
+                frames_per_buffer=2048  # 固定缓冲区大小
             )
 
             # 使用定时器定期读取音频数据
@@ -386,14 +384,14 @@ class RealtimeChatPage(QWidget):
             import pyaudio
 
             # 从pyaudio流读取数据
-            audio_bytes = self.realtime_chat_stream.read(self.realtime_chat_vad_config['chunk_size'], exception_on_overflow=False)
+            audio_bytes = self.realtime_chat_stream.read(2048, exception_on_overflow=False)
 
             if len(audio_bytes) > 0:
                 # 累积音频数据到缓冲区
                 self.realtime_chat_speech_frames.append(audio_bytes)
 
                 # 检查是否达到发送阈值（例如：2秒的音频数据）
-                max_frames = int(2.0 * self.realtime_chat_vad_config['sample_rate'] / self.realtime_chat_vad_config['chunk_size'])
+                max_frames = int(2.0 * 16000 / 2048)  # 基于固定参数计算
                 if len(self.realtime_chat_speech_frames) >= max_frames:
                     self.send_audio_chunk()
 
@@ -436,7 +434,6 @@ class RealtimeChatPage(QWidget):
 
             # 清空已发送的帧
             self.realtime_chat_speech_frames.clear()
-            self.realtime_chat_silence_frames = 0
 
         except Exception as e:
             self.add_message(f"发送音频失败: {str(e)}", "error")
@@ -488,7 +485,7 @@ class RealtimeChatPage(QWidget):
         # 播放下一个音频
         self.play_next_audio()
 
-        # 如果音频队列为空，说明整个TTS响应播放完成，重新启用VAD和STT
+        # 如果音频队列为空，说明整个TTS响应播放完成，重新启用录音
         if not self.realtime_chat_audio_queue:
             self.realtime_chat_is_processing_response = False
             # 恢复UI状态

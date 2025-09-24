@@ -205,17 +205,5 @@ DEFAULT_CONFIG["gui"] = {
         "default_port": get_config_value("gui.server.default_port", int, 8080),
         "stt_ws_url": get_config_value("gui.server.stt_ws_url", str, "ws://localhost:8080/stt/ws"),
         "realtime_chat_ws_url": get_config_value("gui.server.realtime_chat_ws_url", str, "ws://localhost:8080/ws/realtime_chat")
-    },
-    "vad": {
-        "realtime_chat": {
-            "sample_rate": get_config_value("gui.vad.realtime_chat.sample_rate", int, 16000),
-            "channels": get_config_value("gui.vad.realtime_chat.channels", int, 1),
-            "chunk_size": get_config_value("gui.vad.realtime_chat.chunk_size", int, 2048),
-            "sentence_detection": {
-                "max_silence_frames": get_config_value("gui.vad.realtime_chat.sentence_detection.max_silence_frames", int, 5),
-                "silence_threshold": get_config_value("gui.vad.realtime_chat.sentence_detection.silence_threshold", float, 0.1),
-                "min_sentence_length": get_config_value("gui.vad.realtime_chat.sentence_detection.min_sentence_length", float, 1.0)
-            }
-        }
     }
 }
