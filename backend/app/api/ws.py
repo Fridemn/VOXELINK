@@ -133,61 +133,6 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                         "config": session_state
                     })
 
-                elif action == "vad_check":
-                    # VAD语音活动检测 - 如果正在处理响应，忽略VAD检测
-                    if session_state.get("is_processing_response", False):
-                        logger.debug("正在处理响应，忽略VAD检测请求")
-                        continue
-
-                    audio_data_base64 = message.get("data", {}).get("audio_data", "")
-                    sample_rate = message.get("data", {}).get("sample_rate", 16000)
-
-                    if not audio_data_base64:
-                        await manager.send_json(websocket, {
-                            "success": False,
-                            "error": "未接收到音频数据"
-                        })
-                        continue
-
-                    # 解码音频数据
-                    audio_data = base64.b64decode(audio_data_base64)
-                    logger.debug(f"接收到VAD检测音频数据，大小: {len(audio_data)} 字节, 采样率: {sample_rate}")
-
-                    # 检查音频数据大小是否合理
-                    expected_chunk_duration = len(audio_data) / (sample_rate * 2)  # 16位PCM
-                    logger.debug(f"音频块时长: {expected_chunk_duration:.3f}秒")
-
-                    try:
-                        vad_result = vad_service.detect_speech_segments(audio_data, sample_rate)
-
-                        if vad_result["success"]:
-                            logger.debug(f"VAD检测成功: is_speech={vad_result['speech_detected']}, "
-                                       f"speech_duration={vad_result['total_speech_duration']:.3f}s, "
-                                       f"confidence={vad_result['confidence']:.3f}, rms={vad_result['rms']:.3f}")
-                            await manager.send_json(websocket, {
-                                "success": True,
-                                "type": "vad_result",
-                                "data": {
-                                    "is_speech": vad_result["speech_detected"],
-                                    "speech_duration": vad_result["total_speech_duration"],
-                                    "confidence": vad_result["confidence"],
-                                    "rms": vad_result["rms"]
-                                }
-                            })
-                        else:
-                            logger.error(f"VAD检测失败: {vad_result['error']}")
-                            await manager.send_json(websocket, {
-                                "success": False,
-                                "error": f"VAD检测失败: {vad_result['error']}"
-                            })
-
-                    except Exception as e:
-                        logger.error(f"VAD检测异常: {str(e)}", exc_info=True)
-                        await manager.send_json(websocket, {
-                            "success": False,
-                            "error": f"VAD检测异常: {str(e)}"
-                        })
-
                 elif action == "audio":
                     if session_state.get("is_processing_response", False):
                         logger.debug("正在处理响应，忽略音频数据")
