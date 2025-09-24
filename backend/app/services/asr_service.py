@@ -21,11 +21,30 @@ def get_stt_settings() -> Dict[str, Any]:
     """获取STT配置"""
     # 使用后端统一配置系统
     try:
-        from app.config.default import DEFAULT_CONFIG
-        return DEFAULT_CONFIG.get("stt", {})
+        from .. import app_config
+        return app_config.get("stt", {})
     except Exception as e:
         logger.warning(f"无法加载后端配置，使用空配置: {e}")
         return {}
+
+
+def get_vad_settings() -> Dict[str, Any]:
+    """获取VAD配置"""
+    try:
+        from .. import app_config
+        return app_config.get("vad", {})
+    except Exception as e:
+        logger.warning(f"无法加载VAD配置，使用默认配置: {e}")
+        return {
+            "threshold": 0.3,
+            "min_speech_duration_ms": 100,
+            "max_speech_duration_s": 30,
+            "min_silence_duration_ms": 300,
+            "window_size_samples": 1024,
+            "speech_pad_ms": 30,
+            "merge_vad": True,
+            "merge_length_s": 15,
+        }
 
 
 # 配置日志
@@ -38,6 +57,7 @@ class ASRService:
     def __init__(self):
         """初始化语音识别服务"""
         self.settings = get_stt_settings()
+        self.vad_settings = get_vad_settings()
         self.model = None
         
         # 初始化ASR模型
@@ -67,14 +87,26 @@ class ASRService:
             if not os.path.exists(model_dir):
                 logger.error(f"ASR模型目录不存在: {model_dir}")
                 return
-              # 初始化模型            logger.info(f"正在加载ASR模型: {model_dir}")
+            # 初始化模型
+            logger.info(f"正在加载ASR模型: {model_dir}")
+            
+            # 构建VAD配置参数
+            vad_kwargs = {
+                "max_single_segment_time": int(self.vad_settings.get("max_speech_duration_s", 30) * 1000),  # 转换为毫秒
+                "threshold": self.vad_settings.get("threshold", 0.3),
+                "min_speech_duration_ms": self.vad_settings.get("min_speech_duration_ms", 100),
+                "min_silence_duration_ms": self.vad_settings.get("min_silence_duration_ms", 300),
+                "window_size_samples": self.vad_settings.get("window_size_samples", 1024),
+                "speech_pad_ms": self.vad_settings.get("speech_pad_ms", 30),
+            }
+            
             self.model = AutoModel(
                 model=model_dir,
                 device="cuda" if use_gpu and self._is_gpu_available() else "cpu",
                 batch_size=1,
                 ncpu=4,
                 vad_model="fsmn-vad",  # 添加VAD模型以提高语言检测准确性
-                vad_kwargs={"max_single_segment_time": 30000},  # VAD配置
+                vad_kwargs=vad_kwargs,  # 使用配置的VAD参数
             )
             logger.info("ASR模型加载完成")
 
@@ -209,8 +241,8 @@ class ASRService:
                 language="zh",  # 强制指定中文
                 use_itn=False,   # 不使用逆文本规范化，保持原始输出
                 batch_size_s=60,  # 动态批处理
-                merge_vad=True,   # 合并VAD分割的短音频片段
-                merge_length_s=15  # 合并长度
+                merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
+                merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
             )
             
             # 删除临时文件
@@ -273,8 +305,8 @@ class ASRService:
                     language="zh",  # 强制指定中文
                     use_itn=False,   # 不使用逆文本规范化
                     batch_size_s=60,  # 动态批处理
-                    merge_vad=True,   # 合并VAD分割的短音频片段
-                    merge_length_s=15  # 合并长度
+                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
+                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
                 )
             except Exception as e:
                 logger.warning(f"直接PCM识别失败，尝试转换为WAV: {str(e)}")
@@ -298,8 +330,8 @@ class ASRService:
                     language="zh",  # 强制指定中文
                     use_itn=False,   # 不使用逆文本规范化
                     batch_size_s=60,  # 动态批处理
-                    merge_vad=True,   # 合并VAD分割的短音频片段
-                    merge_length_s=15  # 合并长度
+                    merge_vad=self.vad_settings.get("merge_vad", True),   # 合并VAD分割的短音频片段
+                    merge_length_s=self.vad_settings.get("merge_length_s", 15)  # 合并长度
                 )
                 
                 # 删除临时WAV文件

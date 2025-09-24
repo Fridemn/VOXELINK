@@ -188,6 +188,8 @@ DEFAULT_CONFIG["vad"] = {
     "min_silence_duration_ms": get_config_value("vad.min_silence_duration_ms", int, 300),  # 最短静音持续时间
     "window_size_samples": get_config_value("vad.window_size_samples", int, 1024),  # 窗口大小
     "speech_pad_ms": get_config_value("vad.speech_pad_ms", int, 30),  # 语音填充时间
+    "merge_vad": get_config_value("vad.merge_vad", bool, True),  # 是否合并VAD分割的短音频片段
+    "merge_length_s": get_config_value("vad.merge_length_s", int, 15),  # 合并长度（秒）
 }
 
 # GUI配置
