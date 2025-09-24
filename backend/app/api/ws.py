@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 from pathlib import Path
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ..services.asr_service import get_asr_service
-from ..services.vad_service import get_vad_service
+
 
 from ..core.pipeline.chat_process import chat_process
 
@@ -84,7 +84,7 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
 
         # 获取服务实例
         asr_service = get_asr_service()
-        vad_service = get_vad_service()
+
 
         # 发送连接成功消息
         await manager.send_json(websocket, {
