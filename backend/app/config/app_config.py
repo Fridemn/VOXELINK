@@ -12,12 +12,21 @@ from .default import DEFAULT_CONFIG
 class AppConfig(dict):
     """从环境变量读取的配置，支持直接通过点号操作符访问根配置项"""
 
-    def __init__(self):
+    def __init__(self, data=None):
         super().__init__()
+        if data is None:
+            data = DEFAULT_CONFIG
+        self._convert_dict(data)
+        if data is DEFAULT_CONFIG:
+            logger.info("Configuration loaded")
 
-        # 直接使用从环境变量读取的默认配置
-        self.update(DEFAULT_CONFIG)
-        logger.info("Configuration loaded")
+    def _convert_dict(self, data):
+        """递归转换嵌套字典为AppConfig实例"""
+        for key, value in data.items():
+            if isinstance(value, dict):
+                self[key] = AppConfig(value)
+            else:
+                self[key] = value
 
     def __getattr__(self, key: str) -> Any:
         try:

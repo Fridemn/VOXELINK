@@ -12,3 +12,4 @@ backend/config.json
 
 __pycache__
 *.pyc
+static/live2d/march7

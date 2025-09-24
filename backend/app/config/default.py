@@ -209,3 +209,18 @@ DEFAULT_CONFIG["gui"] = {
         "realtime_chat_ws_url": get_config_value("gui.server.realtime_chat_ws_url", str, "ws://localhost:8080/ws/realtime_chat")
     }
 }
+
+# Live2D配置
+DEFAULT_CONFIG["live2d"] = {
+    "default_model": get_config_value("live2d.default_model", str, "march7"),
+    "model_directory": get_config_value("live2d.model_directory", str, "march7"),
+    "model_file": get_config_value("live2d.model_file", str, "三月七.model3.json"),
+    "model_name": get_config_value("live2d.model_name", str, "三月七 (March 7th)"),
+    "models": {
+        "march7": {
+            "name": "三月七",
+            "model_file": "三月七.model3.json",
+            "directory": "march7"
+        }
+    }
+}
