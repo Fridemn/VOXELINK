@@ -35,6 +35,11 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_vad_config = self.config['gui']['vad']['realtime_chat']
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
+        self.vad_sentence_config = self.realtime_chat_vad_config.get('sentence_detection', {
+            'max_silence_frames': 5,
+            'silence_threshold': 0.1,
+            'min_sentence_length': 1.0
+        })
 
         # VAD句子整合状态 - 简化为基本状态
         self.realtime_chat_vad_in_sentence = False   # 是否正在句子中
@@ -254,24 +259,25 @@ class RealtimeChatPage(QWidget):
                 is_speech = vad_data.get("is_speech", False)
                 confidence = vad_data.get("confidence", 0.0)
                 rms = vad_data.get("rms", 0.0)
-                sentence_info = vad_data.get("sentence_info", {})
 
                 self.update_vad_display(confidence, rms)
-
                 self.update_voice_activity(is_speech)
-
-                should_end_sentence = sentence_info.get("should_end_sentence", False)
-
                 if is_speech:
                     # 检测到语音
                     if not self.realtime_chat_vad_in_sentence:
                         # 开始新句子
                         self.realtime_chat_vad_in_sentence = True
                         self.add_message("开始检测到语音，开始记录句子...", "system")
-                        
-                elif should_end_sentence and self.realtime_chat_vad_in_sentence:
-                    # 后端检测到句子应该结束
-                    self.send_sentence_audio()
+                else:
+                    # 没有检测到语音，检查是否应该结束句子
+                    if self.realtime_chat_vad_in_sentence:
+                        self.realtime_chat_silence_frames += 1
+                        # 使用配置的静音帧数阈值
+                        max_silence_frames = self.vad_sentence_config.get('max_silence_frames', 5)
+                        if self.realtime_chat_silence_frames >= max_silence_frames:
+                            self.send_sentence_audio()
+                    else:
+                        self.realtime_chat_silence_frames = 0
 
             elif msg_type == "stream_chunk":
                 # 流式数据块
@@ -454,11 +460,12 @@ class RealtimeChatPage(QWidget):
         if not self.realtime_chat_websocket or self.realtime_chat_websocket.state() != QAbstractSocket.SocketState.ConnectedState:
             return
 
+        if self.realtime_chat_is_processing_response:
+            return
+
         try:
-            # 转换为base64
             base64_audio = base64.b64encode(audio_bytes).decode('utf-8')
 
-            # 发送VAD检测请求 - 简化的逻辑，后端负责句子检测
             message = json.dumps({
                 "action": "vad_check",
                 "data": {
@@ -469,13 +476,12 @@ class RealtimeChatPage(QWidget):
 
             self.realtime_chat_websocket.sendTextMessage(message)
 
-            # 累积音频数据到句子缓冲区（简化版本）
+            # 累积音频数据到句子缓冲区
             self.realtime_chat_vad_sentence_buffer.append(audio_bytes)
 
-            # 限制句子缓冲区大小，避免内存溢出 (大约10秒的音频)
-            max_sentence_buffer_size = int(10.0 * self.realtime_chat_vad_config['sample_rate'] * 2 / self.realtime_chat_vad_config['chunk_size'])
-            if len(self.realtime_chat_vad_sentence_buffer) > max_sentence_buffer_size:
-                # 移除旧的音频数据，但保持最近的1秒用于连续性
+            max_buffer_size = int(10.0 * self.realtime_chat_vad_config['sample_rate'] * 2 / self.realtime_chat_vad_config['chunk_size'])
+            if len(self.realtime_chat_vad_sentence_buffer) > max_buffer_size:
+                # 保留最近1秒音频用于连续性
                 keep_frames = int(1.0 * self.realtime_chat_vad_config['sample_rate'] * 2 / self.realtime_chat_vad_config['chunk_size'])
                 self.realtime_chat_vad_sentence_buffer = self.realtime_chat_vad_sentence_buffer[-keep_frames:]
 

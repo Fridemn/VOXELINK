@@ -171,8 +171,7 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                                     "is_speech": vad_result["speech_detected"],
                                     "speech_duration": vad_result["total_speech_duration"],
                                     "confidence": vad_result["confidence"],
-                                    "rms": vad_result["rms"],
-                                    "sentence_info": vad_result["sentence_info"]
+                                    "rms": vad_result["rms"]
                                 }
                             })
                         else:

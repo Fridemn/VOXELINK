@@ -142,47 +142,35 @@ class VADService:
             }
 
     def detect_speech_segments(self, audio_data: bytes, sample_rate: int = 16000) -> Dict[str, Any]:
-        """检测音频中的语音活动段落，支持句子级别的缓冲和整合
+        """检测音频中的语音活动段落
 
         Args:
             audio_data: 音频数据（PCM格式）
             sample_rate: 采样率
 
         Returns:
-            检测结果，包含语音段落和句子状态
+            检测结果，包含语音段落信息
         """
         result = self.detect_speech(audio_data, sample_rate)
         if not result["success"]:
             return result
 
-        # 计算音频块时长
+        # 计算音频块时长和RMS（用于前端显示）
         chunk_duration = len(audio_data) / (sample_rate * 2) if len(audio_data) > 0 else 0
-
-        # 计算RMS值用于前端显示
         audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
         rms = float(np.sqrt(np.mean(audio_np ** 2))) if len(audio_np) > 0 else 0.0
 
-        # 句子级别的状态管理
-        sentence_config = self.settings.get("sentence_detection", {})
-        max_silence_frames = sentence_config.get("max_silence_frames", 15)  # 默认0.5秒静音
-        silence_threshold = sentence_config.get("silence_threshold", 0.1)  # 静音阈值
-
-        # 简化的句子检测逻辑（基于语音段落的连续性）
-        has_speech = result["total_speech_duration"] >= self.settings.get("min_chunk_speech_duration", 0.05)
+        # 计算语音比例作为置信度
         speech_ratio = result["total_speech_duration"] / chunk_duration if chunk_duration > 0 else 0
 
         return {
             "success": True,
-            "speech_detected": has_speech,
+            "speech_detected": result["speech_detected"],
             "speech_segments": result["speech_segments"],
             "total_speech_duration": result["total_speech_duration"],
             "confidence": speech_ratio,
             "rms": rms,
-            "chunk_duration": chunk_duration,
-            "sentence_info": {
-                "should_end_sentence": speech_ratio < silence_threshold,  # 语音比例低表示可能句子结束
-                "speech_ratio": speech_ratio
-            }
+            "chunk_duration": chunk_duration
         }
 
 

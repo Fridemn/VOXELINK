@@ -182,19 +182,12 @@ DEFAULT_CONFIG["characters"] = {
 
 # VAD配置 (fsmn-vad参数)
 DEFAULT_CONFIG["vad"] = {
-    "threshold": get_config_value("vad.threshold", float, 0.3),  # VAD阈值 - 降低阈值以提高检测灵敏度
-    "min_speech_duration_ms": get_config_value("vad.min_speech_duration_ms", int, 100),  # 最短语音持续时间 - 降低以检测短语音
+    "threshold": get_config_value("vad.threshold", float, 0.3),  # VAD阈值
+    "min_speech_duration_ms": get_config_value("vad.min_speech_duration_ms", int, 100),  # 最短语音持续时间
     "max_speech_duration_s": get_config_value("vad.max_speech_duration_s", float, 30),  # 最长语音持续时间
-    "min_silence_duration_ms": get_config_value("vad.min_silence_duration_ms", int, 300),  # 最短静音持续时间 - 降低以更快响应
+    "min_silence_duration_ms": get_config_value("vad.min_silence_duration_ms", int, 300),  # 最短静音持续时间
     "window_size_samples": get_config_value("vad.window_size_samples", int, 1024),  # 窗口大小
     "speech_pad_ms": get_config_value("vad.speech_pad_ms", int, 30),  # 语音填充时间
-    "min_chunk_speech_duration": get_config_value("vad.min_chunk_speech_duration", float, 0.05),  # 音频块最少语音时长 - 降低以检测更短的语音
-    # 句子检测配置
-    "sentence_detection": {
-        "max_silence_frames": get_config_value("vad.sentence_detection.max_silence_frames", int, 15),  # 句子结束的最大静音帧数
-        "silence_threshold": get_config_value("vad.sentence_detection.silence_threshold", float, 0.1),  # 句子结束的静音比例阈值
-        "min_sentence_length": get_config_value("vad.sentence_detection.min_sentence_length", float, 1.0),  # 最短句子时长
-    }
 }
 
 # GUI配置
@@ -217,7 +210,12 @@ DEFAULT_CONFIG["gui"] = {
         "realtime_chat": {
             "sample_rate": get_config_value("gui.vad.realtime_chat.sample_rate", int, 16000),
             "channels": get_config_value("gui.vad.realtime_chat.channels", int, 1),
-            "chunk_size": get_config_value("gui.vad.realtime_chat.chunk_size", int, 2048)
+            "chunk_size": get_config_value("gui.vad.realtime_chat.chunk_size", int, 2048),
+            "sentence_detection": {
+                "max_silence_frames": get_config_value("gui.vad.realtime_chat.sentence_detection.max_silence_frames", int, 5),
+                "silence_threshold": get_config_value("gui.vad.realtime_chat.sentence_detection.silence_threshold", float, 0.1),
+                "min_sentence_length": get_config_value("gui.vad.realtime_chat.sentence_detection.min_sentence_length", float, 1.0)
+            }
         }
     }
 }
