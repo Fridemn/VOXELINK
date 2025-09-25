@@ -3,6 +3,7 @@
 VOXELINK GUI 服务器管理页面模块
 """
 
+import re
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QTextEdit, QGroupBox
 from PyQt6.QtGui import QFont
 
@@ -125,7 +126,10 @@ class ServerPage(QWidget):
             self.on_server_finished()
 
     def append_output(self, text):
-        self.output_text.append(text)
+        # 过滤ANSI转义序列（颜色代码等）
+        ansi_escape = re.compile(r'\x1b\[[0-9;]*[mG]')
+        clean_text = ansi_escape.sub('', text)
+        self.output_text.append(clean_text)
 
     def on_server_finished(self):
         self.start_button.setEnabled(True)
