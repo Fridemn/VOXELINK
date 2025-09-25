@@ -142,46 +142,6 @@ class OpenAILLM(BaseLLM):
             yield LLMErrorResponse(reason="(OpenAI) " + str(e)).text
 
 
-class AnthropicLLM(BaseLLM):
-    def __init__(self, llm_config: LLMConfig):
-        super().__init__(llm_config)
-
-        logger.info(f"Created Anthropic LLM instance - model: {self.model_name}, base_url: {self.base_url}")
-
-    async def chat_completion(self, messages: List[LLMMessage]) -> LLMResponse:
-        try:
-            headers = {"x-api-key": self.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
-
-            # 将 OpenAI 消息格式转换为 Anthropic 格式
-            claude_messages = []
-            for msg in messages:
-                claude_messages.append({"role": msg.role, "content": msg.content})
-
-            payload = {"model": self.model_name, "messages": claude_messages, "max_tokens": 1000}
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f"{self.base_url}/messages", headers=headers, json=payload) as response:
-                    # 检查响应状态码
-                    response.raise_for_status()
-
-                    result = await response.json()
-                    if "error" in result:
-                        raise Exception(result["error"])
-
-                    return LLMResponse(
-                        text=result["content"][0]["text"],
-                        raw_response=result,
-                    )
-        except Exception as e:
-            logger.error(f"Anthropic chat completion API failure: {type(e).__name__} - {str(e)}")
-            logger.error(traceback.format_exc())
-            return LLMErrorResponse(reason="(Anthropic) " + str(e))
-
-    async def chat_completion_stream(self, messages: List[LLMMessage]) -> AsyncGenerator[str, None]:
-        # Anthropic流式响应实现可以后续添加
-        yield "Anthropic流式响应尚未实现"
-
-
 class OllamaLLM(BaseLLM):
     def __init__(self, llm_config: LLMConfig):
         # Ollama 通常不需要 API key，但保留这个字段以保持接口一致性

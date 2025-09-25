@@ -71,9 +71,6 @@ DEFAULT_CONFIG = {
         "api_key": get_config_value("openai.api_key", str, "sk-default-key"),
         "base_url": get_config_value("openai.base_url", str, "https://api.openai.com/v1"),
     },
-    "anthropic": {
-        "api_key": get_config_value("anthropic.api_key", str, "sk-ant-default-key"),
-    },
     "custom_endpoint": {
         "api_key": get_config_value("custom_endpoint.api_key", str, "default-custom-key"),
     },
@@ -88,7 +85,6 @@ DEFAULT_CONFIG = {
     "llm": {
         "default_model": get_config_value("llm.default_model", str, "gpt-3.5-turbo"),
         "openai_models": get_config_value("llm.openai_models", list, ["gpt-3.5-turbo", "gpt-4"]),
-        "anthropic_models": get_config_value("llm.anthropic_models", list, ["claude-3-7-sonnet"]),
         "ollama_base_url": get_config_value("llm.ollama_base_url", str, "http://localhost:11434"),
         "ollama_models": get_config_value("llm.ollama_models", list, ["llama2"]),
         "custom_endpoint_base_url": get_config_value("llm.custom_endpoint_base_url", str, "http://your-custom-endpoint"),

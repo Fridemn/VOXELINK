@@ -3,9 +3,6 @@
     "api_key": "your-custom-endpoint-api-key",
     "base_url": "your-custom-endpoint-base-url"
   },
-  "anthropic": {
-    "api_key": "sk-ant-your-anthropic-api-key"
-  },
   "custom_endpoint": {
     "api_key": "your-custom-endpoint-api-key"
   },
@@ -46,7 +43,6 @@
   "llm": {
     "default_model": "gpt-3.5-turbo",
     "openai_models": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "deepseek/deepseek-v3-0324"],
-    "anthropic_models": ["claude-3-sonnet", "claude-3-haiku"],
     "ollama_base_url": "http://localhost:11434",
     "ollama_models": ["llama2", "codellama"],
     "custom_endpoint_base_url": "http://your-custom-endpoint",

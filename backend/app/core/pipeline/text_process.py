@@ -8,7 +8,7 @@ from loguru import logger
 from ... import app_config
 from ...core.db.db_history import db_message_history
 from ...core.llm.message import Response, Message, MessageSender, MessageRole, MessageComponent
-from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, AnthropicLLM, OllamaLLM
+from ...core.llm.chat import LLMMessage, LLMResponse, LLMConfig, BaseLLM, OpenAILLM, OllamaLLM
 
 
 llm_config = app_config.llm
@@ -22,8 +22,6 @@ logger.info(f"LLM配置: {llm_config}")
 MODEL_TO_ENDPOINT = {
     # OpenAI 模型
     **{model.strip(): "openai" for model in llm_config.get("openai_models", [])},
-    # Anthropic 模型
-    **{model.strip(): "anthropic" for model in llm_config.get("anthropic_models", [])},
     # Ollama 模型
     **{model.strip(): "ollama" for model in llm_config.get("ollama_models", [])},
     # 自定义端点模型
@@ -69,7 +67,6 @@ class TextProcess:
     def _initialize_llms(self):
         # 根据新的配置结构初始化LLM实例
         openai_config = app_config.openai
-        anthropic_config = app_config.anthropic
         custom_endpoint_config = app_config.custom_endpoint
 
         # 初始化OpenAI模型
@@ -80,17 +77,6 @@ class TextProcess:
                     api_key=openai_config["api_key"], base_url=openai_config["base_url"], model_name=model
                 )
                 self.llm_instances[model] = OpenAILLM(llm_config_obj)
-
-        # 初始化Anthropic模型
-        if anthropic_config:
-            for model in llm_config.get("anthropic_models", []):
-                model = model.strip()
-                llm_config_obj = LLMConfig(
-                    api_key=anthropic_config["api_key"],
-                    base_url="https://api.anthropic.com",  # Anthropic默认URL
-                    model_name=model,
-                )
-                self.llm_instances[model] = AnthropicLLM(llm_config_obj)
 
         # 初始化Ollama模型
         for model in llm_config.get("ollama_models", []):
