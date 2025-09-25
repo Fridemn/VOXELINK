@@ -161,8 +161,6 @@ class DesktopPetWindow(QWidget):
             self.model_file = '三月七.model3.json'
             self.model_name = '三月七 (March 7th)'
             print("使用默认配置")
-        self.dragging = False
-        self.drag_position = QPoint()
 
         self.init_ui()
         self.init_live2d()
@@ -203,12 +201,6 @@ class DesktopPetWindow(QWidget):
         self.eye_tracking_timer.timeout.connect(self.update_eye_tracking)
         self.eye_tracking_timer.start(50)  # 每50ms更新一次
         
-        # 创建拖拽句柄（隐藏的小区域用于拖拽）
-        self.drag_handle = QLabel(self)
-        self.drag_handle.setGeometry(0, 0, 30, 30)  # 左上角30x30像素的拖拽区域
-        self.drag_handle.setStyleSheet("background: rgba(255,255,255,30); border-radius: 15px;")
-        self.drag_handle.setVisible(False)  # 默认隐藏
-        
         # 添加鼠标跟踪以实现悬停效果
         self.setMouseTracking(True)
         if hasattr(self, 'live2d_widget'):
@@ -233,7 +225,9 @@ class DesktopPetWindow(QWidget):
             
             # 检查鼠标是否在窗口内
             if not self.rect().contains(local_mouse_pos):
-                # 鼠标在窗口外，保持当前状态
+                # 鼠标在窗口外，启用穿透
+                if not self.mouse_transparent:
+                    self.set_mouse_transparent(True)
                 return
             
             # 检查当前位置是否应该透明
@@ -281,10 +275,6 @@ class DesktopPetWindow(QWidget):
     def is_transparent_at_point(self, pos):
         """检测指定位置是否为透明像素"""
         try:
-            # 检查是否在拖拽句柄区域
-            if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
-                return False  # 拖拽区域不透明
-            
             # 如果有Live2D模型，检查是否在模型渲染区域内
             if self.live2d_widget and hasattr(self.live2d_widget, 'model') and self.live2d_widget.model:
                 # 检查是否在Live2D widget区域内
@@ -342,34 +332,20 @@ class DesktopPetWindow(QWidget):
         pos = event.position().toPoint()
         
         if event.button() == Qt.MouseButton.LeftButton:
-            # 检查是否点击在拖拽句柄上
-            if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
-                # 在拖拽句柄上，开始拖拽
-                self.dragging = True
-                self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-                event.accept()
-                print("开始拖拽")
-                return
-            elif self.live2d_widget:
-                # 传递给Live2D模型
+            if self.live2d_widget:
+                # 检查是否在模型区域内
                 widget_rect = self.live2d_widget.geometry()
                 if widget_rect.contains(pos):
                     local_pos = pos - widget_rect.topLeft()
+                    
+                    # 传递给Live2D模型处理点击
                     fake_event = QMouseEvent(event.type(), 
                                            QPointF(local_pos.x(), local_pos.y()),
                                            event.button(), event.buttons(), event.modifiers())
                     self.live2d_widget.mousePressEvent(fake_event)
-                    print(f"Live2D模型点击: {local_pos}")
+                    
                 event.accept()
                 return
-        
-        # 右键显示/隐藏拖拽句柄
-        elif event.button() == Qt.MouseButton.RightButton:
-            if hasattr(self, 'drag_handle'):
-                self.drag_handle.setVisible(not self.drag_handle.isVisible())
-                print(f"拖拽句柄可见性: {self.drag_handle.isVisible()}")
-            event.accept()
-            return
         
         event.accept()
 
@@ -377,21 +353,11 @@ class DesktopPetWindow(QWidget):
         """鼠标移动事件"""
         pos = event.position().toPoint()
         
-        if self.dragging:
-            # 拖拽中
-            self.move(event.globalPosition().toPoint() - self.drag_position)
-            event.accept()
-            return
-        
         # 设置光标
-        if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
-            self.setCursor(Qt.CursorShape.SizeAllCursor)
+        if not self.is_transparent_at_point(pos):
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
-            # 检查是否在模型区域
-            if not self.is_transparent_at_point(pos):
-                self.setCursor(Qt.CursorShape.PointingHandCursor)
-            else:
-                self.setCursor(Qt.CursorShape.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
         
         # 传递给Live2D模型
         if self.live2d_widget:
@@ -410,12 +376,6 @@ class DesktopPetWindow(QWidget):
         pos = event.position().toPoint()
         
         if event.button() == Qt.MouseButton.LeftButton:
-            if self.dragging:
-                self.dragging = False
-                print("结束拖拽")
-                event.accept()
-                return
-            
             # 传递给Live2D模型
             if self.live2d_widget:
                 widget_rect = self.live2d_widget.geometry()
@@ -432,11 +392,6 @@ class DesktopPetWindow(QWidget):
         """键盘事件"""
         if event.key() == Qt.Key.Key_Escape:
             self.close()
-        elif event.key() == Qt.Key.Key_D and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            # Ctrl+D 切换拖拽句柄可见性
-            if hasattr(self, 'drag_handle'):
-                self.drag_handle.setVisible(not self.drag_handle.isVisible())
-                print(f"拖拽句柄可见性: {self.drag_handle.isVisible()}")
         elif event.key() == Qt.Key.Key_T and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             # Ctrl+T 测试透明度检测
             cursor_pos = QCursor.pos()
