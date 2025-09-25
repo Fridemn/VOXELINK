@@ -131,3 +131,6 @@ cython_debug/
 
 # config
 ./config.json
+
+# Large files
+SenseVoiceSmall/
