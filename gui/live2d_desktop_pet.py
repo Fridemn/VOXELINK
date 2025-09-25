@@ -7,11 +7,31 @@ import os
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QScrollArea, QFrame, QMainWindow
 from PyQt6.QtGui import QFont, QPixmap, QMouseEvent, QCursor
-from PyQt6.QtCore import QTimerEvent, Qt, QPoint, QRect, QTimer
+from PyQt6.QtCore import QTimerEvent, Qt, QPoint, QPointF, QRect, QTimer
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import *
 import live2d.v3 as live2d
 from . import resources
+
+# Windows API for mouse pass-through
+try:
+    import ctypes
+    from ctypes import wintypes
+    
+    # Windows constants
+    GWL_EXSTYLE = -20
+    WS_EX_TRANSPARENT = 0x00000020
+    WS_EX_LAYERED = 0x00080000
+    
+    # Windows API functions
+    user32 = ctypes.windll.user32
+    GetWindowLong = user32.GetWindowLongW
+    SetWindowLong = user32.SetWindowLongW
+    
+    WINDOWS_API_AVAILABLE = True
+except ImportError:
+    WINDOWS_API_AVAILABLE = False
+    print("Windows API不可用，使用备用方案")
 
 
 class Live2DWidget(QOpenGLWidget):
@@ -72,6 +92,22 @@ class Live2DWidget(QOpenGLWidget):
             x = event.position().x()
             y = event.position().y()
             self.model.Drag(x, y)
+    
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件"""
+        if self.model and event.button() == Qt.MouseButton.LeftButton:
+            x = event.position().x()
+            y = event.position().y()
+            # 检查释放时的hit test
+            hit_areas = ["Body", "Head", "Face"]
+            for area in hit_areas:
+                try:
+                    if self.model.HitTest(area, x, y):
+                        print(f"在{area}区域释放鼠标")
+                        # 可以在这里添加特定的交互逻辑
+                        break
+                except:
+                    continue
 
     def mousePressEvent(self, event):
         """鼠标按下事件"""
@@ -84,6 +120,22 @@ class Live2DWidget(QOpenGLWidget):
                 if self.model.HitTest(area, x, y):
                     print(f"点击了区域: {area}")
                     break
+    
+    def is_hit_at_point(self, x, y):
+        """检查指定坐标是否命中模型（用于透明度检测）"""
+        if not self.model:
+            return False
+        
+        # 检查多个可能的hit区域
+        hit_areas = ["Body", "Head", "Face", "Hair", "Outfit", "Accessory", "Model"]
+        for area in hit_areas:
+            try:
+                if self.model.HitTest(area, x, y):
+                    return True
+            except:
+                continue  # 如果某个区域不存在，继续检查下一个
+        
+        return False
 
     def timerEvent(self, a0: QTimerEvent | None) -> None:
         """定时器事件，用于重绘"""
@@ -115,12 +167,11 @@ class DesktopPetWindow(QWidget):
         self.init_ui()
         self.init_live2d()
 
-        # 设置窗口属性 - 完全透明，无边框，鼠标事件穿透
+        # 设置窗口属性 - 完全透明，无边框
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool |
-            Qt.WindowType.WindowTransparentForInput  # 让鼠标事件穿透到下面的窗口
+            Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
@@ -151,6 +202,68 @@ class DesktopPetWindow(QWidget):
         self.eye_tracking_timer = QTimer(self)
         self.eye_tracking_timer.timeout.connect(self.update_eye_tracking)
         self.eye_tracking_timer.start(50)  # 每50ms更新一次
+        
+        # 创建拖拽句柄（隐藏的小区域用于拖拽）
+        self.drag_handle = QLabel(self)
+        self.drag_handle.setGeometry(0, 0, 30, 30)  # 左上角30x30像素的拖拽区域
+        self.drag_handle.setStyleSheet("background: rgba(255,255,255,30); border-radius: 15px;")
+        self.drag_handle.setVisible(False)  # 默认隐藏
+        
+        # 添加鼠标跟踪以实现悬停效果
+        self.setMouseTracking(True)
+        if hasattr(self, 'live2d_widget'):
+            self.live2d_widget.setMouseTracking(True)
+        
+        # 鼠标穿透状态控制
+        self.mouse_transparent = False
+        self.last_mouse_pos = QPoint(0, 0)
+        
+        # 创建定时器来检查鼠标位置并动态切换穿透状态
+        self.transparency_timer = QTimer(self)
+        self.transparency_timer.timeout.connect(self.update_mouse_transparency)
+        self.transparency_timer.start(50)  # 每50ms检查一次
+        
+    def update_mouse_transparency(self):
+        """根据鼠标当前位置动态更新穿透状态"""
+        try:
+            # 获取全局鼠标位置
+            global_mouse_pos = QCursor.pos()
+            # 转换为窗口相对位置
+            local_mouse_pos = self.mapFromGlobal(global_mouse_pos)
+            
+            # 检查鼠标是否在窗口内
+            if not self.rect().contains(local_mouse_pos):
+                # 鼠标在窗口外，保持当前状态
+                return
+            
+            # 检查当前位置是否应该透明
+            should_be_transparent = self.is_transparent_at_point(local_mouse_pos)
+            
+            # 如果状态需要改变，则更新
+            if should_be_transparent != self.mouse_transparent:
+                self.set_mouse_transparent(should_be_transparent)
+                
+        except Exception as e:
+            print(f"更新透明度状态时出错: {e}")
+    
+    def set_mouse_transparent(self, transparent):
+        """设置鼠标穿透状态"""
+        if WINDOWS_API_AVAILABLE:
+            hwnd = int(self.winId())
+            current_style = GetWindowLong(hwnd, GWL_EXSTYLE)
+            
+            if transparent:
+                # 启用鼠标穿透
+                new_style = current_style | WS_EX_TRANSPARENT | WS_EX_LAYERED
+            else:
+                # 禁用鼠标穿透
+                new_style = current_style & ~WS_EX_TRANSPARENT
+            
+            SetWindowLong(hwnd, GWL_EXSTYLE, new_style)
+            self.mouse_transparent = transparent
+            print(f"鼠标穿透状态: {'启用' if transparent else '禁用'}")
+        else:
+            print("Windows API不可用，无法设置鼠标穿透")
 
     def init_live2d(self):
         """初始化Live2D"""
@@ -158,12 +271,56 @@ class DesktopPetWindow(QWidget):
             # 初始化Live2D
             live2d.init()
             self.live2d_widget = Live2DWidget(self.model_directory, self.model_file)
+            self.live2d_widget.setMouseTracking(True)  # 启用鼠标跟踪
             self.live2d_container.layout().addWidget(self.live2d_widget)
         except Exception as e:
             print(f"Live2D初始化失败: {str(e)}")
             # 回退到静态显示
             self.add_fallback_display()
 
+    def is_transparent_at_point(self, pos):
+        """检测指定位置是否为透明像素"""
+        try:
+            # 检查是否在拖拽句柄区域
+            if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
+                return False  # 拖拽区域不透明
+            
+            # 如果有Live2D模型，检查是否在模型渲染区域内
+            if self.live2d_widget and hasattr(self.live2d_widget, 'model') and self.live2d_widget.model:
+                # 检查是否在Live2D widget区域内
+                widget_rect = self.live2d_widget.geometry()
+                if widget_rect.contains(pos):
+                    # 转换为Live2D widget内的坐标
+                    local_pos = pos - widget_rect.topLeft()
+                    
+                    # 使用Live2D的精确hit test来检测是否点击到模型
+                    if self.live2d_widget.is_hit_at_point(local_pos.x(), local_pos.y()):
+                        return False  # 点击到模型，不透明
+                    
+                    # 如果Live2D hit test失败，使用简单的几何边界检查作为备选
+                    # 假设模型在widget的中心区域内
+                    center_x = widget_rect.width() // 2
+                    center_y = widget_rect.height() // 2
+                    model_width = widget_rect.width() * 0.6  # 假设模型占60%宽度
+                    model_height = widget_rect.height() * 0.8  # 假设模型占80%高度
+                    
+                    # 椭圆边界检查（更贴近人形模型的形状）
+                    dx = (local_pos.x() - center_x) / (model_width // 2)
+                    dy = (local_pos.y() - center_y) / (model_height // 2)
+                    
+                    is_in_model = dx * dx + dy * dy <= 1.0
+                    
+                    # 调试信息
+                    print(f"位置检测: pos={pos}, local={local_pos}, 椭圆检测={'在模型内' if is_in_model else '在模型外'}")
+                    
+                    if is_in_model:
+                        return False  # 在模型的椭圆边界内，不透明
+            
+            return True  # 其他区域透明
+        except Exception as e:
+            print(f"透明度检测错误: {e}")
+            return True  # 出错时默认透明
+    
     def add_fallback_display(self):
         """添加静态显示作为回退方案"""
         # 加载纹理图像
@@ -182,62 +339,110 @@ class DesktopPetWindow(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent):
         """鼠标按下事件"""
+        pos = event.position().toPoint()
+        
         if event.button() == Qt.MouseButton.LeftButton:
             # 检查是否点击在拖拽句柄上
-            if self.drag_handle.geometry().contains(event.position().toPoint()):
+            if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
                 # 在拖拽句柄上，开始拖拽
                 self.dragging = True
                 self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
                 event.accept()
-            elif self.live2d_widget and self.live2d_container.geometry().contains(event.position().toPoint()):
-                # 在Live2D区域内，传递给模型
-                local_pos = self.live2d_widget.mapFromGlobal(event.globalPosition().toPoint())
-                if self.live2d_widget.rect().contains(local_pos):
-                    fake_event = QMouseEvent(event.type(), local_pos, event.button(), event.buttons(), event.modifiers())
+                print("开始拖拽")
+                return
+            elif self.live2d_widget:
+                # 传递给Live2D模型
+                widget_rect = self.live2d_widget.geometry()
+                if widget_rect.contains(pos):
+                    local_pos = pos - widget_rect.topLeft()
+                    fake_event = QMouseEvent(event.type(), 
+                                           QPointF(local_pos.x(), local_pos.y()),
+                                           event.button(), event.buttons(), event.modifiers())
                     self.live2d_widget.mousePressEvent(fake_event)
+                    print(f"Live2D模型点击: {local_pos}")
                 event.accept()
-            else:
-                # 在透明区域，忽略事件让它穿透
-                event.ignore()
+                return
+        
+        # 右键显示/隐藏拖拽句柄
+        elif event.button() == Qt.MouseButton.RightButton:
+            if hasattr(self, 'drag_handle'):
+                self.drag_handle.setVisible(not self.drag_handle.isVisible())
+                print(f"拖拽句柄可见性: {self.drag_handle.isVisible()}")
+            event.accept()
+            return
+        
+        event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent):
         """鼠标移动事件"""
+        pos = event.position().toPoint()
+        
         if self.dragging:
             # 拖拽中
             self.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
-        elif self.live2d_widget and self.live2d_container.geometry().contains(event.position().toPoint()):
-            # 在Live2D区域内，传递给模型
-            local_pos = self.live2d_widget.mapFromGlobal(event.globalPosition().toPoint())
-            if self.live2d_widget.rect().contains(local_pos):
-                fake_event = QMouseEvent(event.type(), local_pos, event.button(), event.buttons(), event.modifiers())
-                self.live2d_widget.mouseMoveEvent(fake_event)
-            event.accept()
+            return
+        
+        # 设置光标
+        if hasattr(self, 'drag_handle') and self.drag_handle.isVisible() and self.drag_handle.geometry().contains(pos):
+            self.setCursor(Qt.CursorShape.SizeAllCursor)
         else:
-            # 在透明区域，忽略事件
-            event.ignore()
+            # 检查是否在模型区域
+            if not self.is_transparent_at_point(pos):
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+        
+        # 传递给Live2D模型
+        if self.live2d_widget:
+            widget_rect = self.live2d_widget.geometry()
+            if widget_rect.contains(pos):
+                local_pos = pos - widget_rect.topLeft()
+                fake_event = QMouseEvent(event.type(), 
+                                       QPointF(local_pos.x(), local_pos.y()),
+                                       event.button(), event.buttons(), event.modifiers())
+                self.live2d_widget.mouseMoveEvent(fake_event)
+        
+        event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         """鼠标释放事件"""
+        pos = event.position().toPoint()
+        
         if event.button() == Qt.MouseButton.LeftButton:
             if self.dragging:
                 self.dragging = False
+                print("结束拖拽")
                 event.accept()
-            elif self.live2d_widget and self.live2d_container.geometry().contains(event.position().toPoint()):
-                # 在Live2D区域内，传递给模型
-                local_pos = self.live2d_widget.mapFromGlobal(event.globalPosition().toPoint())
-                if self.live2d_widget.rect().contains(local_pos):
-                    fake_event = QMouseEvent(event.type(), local_pos, event.button(), event.buttons(), event.modifiers())
+                return
+            
+            # 传递给Live2D模型
+            if self.live2d_widget:
+                widget_rect = self.live2d_widget.geometry()
+                if widget_rect.contains(pos):
+                    local_pos = pos - widget_rect.topLeft()
+                    fake_event = QMouseEvent(event.type(), 
+                                           QPointF(local_pos.x(), local_pos.y()),
+                                           event.button(), event.buttons(), event.modifiers())
                     self.live2d_widget.mouseReleaseEvent(fake_event)
-                event.accept()
-            else:
-                # 在透明区域，忽略事件
-                event.ignore()
+        
+        event.accept()
 
     def keyPressEvent(self, event):
         """键盘事件"""
         if event.key() == Qt.Key.Key_Escape:
             self.close()
+        elif event.key() == Qt.Key.Key_D and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+D 切换拖拽句柄可见性
+            if hasattr(self, 'drag_handle'):
+                self.drag_handle.setVisible(not self.drag_handle.isVisible())
+                print(f"拖拽句柄可见性: {self.drag_handle.isVisible()}")
+        elif event.key() == Qt.Key.Key_T and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+T 测试透明度检测
+            cursor_pos = QCursor.pos()
+            local_pos = self.mapFromGlobal(cursor_pos)
+            is_transparent = self.is_transparent_at_point(local_pos)
+            print(f"当前鼠标位置 {local_pos} 透明度检测结果: {'透明' if is_transparent else '不透明'}")
         super().keyPressEvent(event)
 
     def closeEvent(self, event):
