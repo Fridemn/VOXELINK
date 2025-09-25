@@ -183,4 +183,9 @@ class VoxelinkGUI(QMainWindow):
         # 断开所有连接
         self.realtime_chat_page.disconnect()
 
+        if hasattr(self, 'desktop_pet') and self.desktop_pet:
+            self.desktop_pet.close()
+
+        QApplication.quit()
+
         event.accept()
