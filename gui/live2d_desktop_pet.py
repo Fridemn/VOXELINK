@@ -56,13 +56,16 @@ SC_MOVE_HTCAPTION = SC_MOVE | HTCAPTION
 class Live2DWidget(QOpenGLWidget):
     """Live2D渲染Widget"""
 
-    def __init__(self, model_directory, model_file, parent=None):
+    def __init__(self, model_directory, model_file, config, parent=None):
         super().__init__(parent)
         self.setStyleSheet("background: transparent; border: none;")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.model: live2d.LAppModel | None = None
         self.model_directory = model_directory
         self.model_file = model_file
+        self.config = config
+        self.mouth_animation_timer = 0
+        self.mouth_open_value = 0.0
         self.setFixedSize(400, 500)  # 确保大小固定
 
     def initializeGL(self) -> None:
@@ -157,8 +160,83 @@ class Live2DWidget(QOpenGLWidget):
         return False
 
     def timerEvent(self, a0: QTimerEvent | None) -> None:
-        """定时器事件，用于重绘"""
+        """定时器事件，用于重绘和口型动画"""
+        # 检查音频播放状态并更新口型
+        self.update_mouth_animation()
         self.update()
+
+    def update_mouth_animation(self):
+        """根据音频播放状态更新口型动画"""
+        if not self.model:
+            return
+
+        # 检查配置中是否有音频播放状态
+        is_audio_playing = False
+        try:
+            if hasattr(self.config, 'runtime_state') and hasattr(self.config.runtime_state, 'audio_playing'):
+                is_audio_playing = self.config.runtime_state.audio_playing
+        except:
+            pass
+
+        if is_audio_playing:
+            # 音频播放中，执行口型动画
+            self.mouth_animation_timer += 1
+            
+            # 创建简单的口型开合动画 (正弦波)
+            import math
+            frequency = 0.5  # 更高的动画频率，让嘴巴张合更快
+            amplitude = 1.0   # 最大动画幅度
+            base_open = 0.2   # 更高的基础嘴巴张开值
+            self.mouth_open_value = base_open + (math.sin(self.mouth_animation_timer * frequency) + 1) * 0.5 * amplitude
+            
+            # 调试：只在第一次音频播放时检查参数
+            if not hasattr(self, '_debugged_params'):
+                print(f"[调试] 开始音频播放，检查嘴巴参数...")
+                self._debugged_params = True
+            
+            # 设置嘴巴参数 - 尝试常见的嘴巴参数名
+            mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth", 
+                           "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+            param_set = False
+            for param in mouth_params:
+                try:
+                    # 直接尝试设置参数，看是否成功
+                    self.model.SetParameterValue(param, self.mouth_open_value)
+                    if not param_set:  # 只打印第一次成功的参数
+                        print(f"[口型动画] 设置参数: {param} = {self.mouth_open_value:.2f}")
+                    param_set = True
+                except Exception as e:
+                    # 不打印失败信息，避免过多输出
+                    continue
+            
+            if not param_set and not hasattr(self, '_warned_no_param'):
+                print("[口型动画] 警告: 无法设置任何嘴巴参数，模型可能不支持口型动画")
+                self._warned_no_param = True
+                
+        else:
+            # 音频未播放时，关闭嘴巴
+            if self.mouth_open_value > 0.01:  # 如果嘴巴开着，逐渐关闭
+                self.mouth_open_value *= 0.7  # 更快地关闭嘴巴
+                mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth",
+                               "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+                for param in mouth_params:
+                    try:
+                        self.model.SetParameterValue(param, self.mouth_open_value)
+                        break
+                    except:
+                        continue
+            else:
+                self.mouth_open_value = 0.0  # 完全关闭嘴巴
+                self.mouth_animation_timer = 0
+                # 确保嘴巴完全关闭，设置参数值为0
+                mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth",
+                               "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+                for param in mouth_params:
+                    try:
+                        self.model.SetParameterValue(param, 0.0)
+                        break
+                    except:
+                        continue
 
 
 class DesktopPetWindow(QWidget):
@@ -409,7 +487,7 @@ class DesktopPetWindow(QWidget):
         try:
             # 初始化Live2D
             live2d.init()
-            self.live2d_widget = Live2DWidget(self.model_directory, self.model_file)
+            self.live2d_widget = Live2DWidget(self.model_directory, self.model_file, self.config)
             self.live2d_widget.setMouseTracking(True)  # 启用鼠标跟踪
             self.live2d_container.layout().addWidget(self.live2d_widget)
         except Exception as e:

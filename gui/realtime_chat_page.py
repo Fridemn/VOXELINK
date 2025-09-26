@@ -33,6 +33,12 @@ class RealtimeChatPage(QWidget):
         self.realtime_chat_current_llm_response = ""
         self.realtime_chat_is_streaming = False
 
+        # 初始化音频播放状态到配置中
+        if not hasattr(self.config, 'runtime_state'):
+            self.config.runtime_state = type('RuntimeState', (), {})()
+        if not hasattr(self.config.runtime_state, 'audio_playing'):
+            self.config.runtime_state.audio_playing = False
+
         self.init_ui()
 
     def init_ui(self):
@@ -444,6 +450,8 @@ class RealtimeChatPage(QWidget):
                 self.realtime_chat_audio_player.setSource(QUrl.fromLocalFile(temp_path))
                 self.realtime_chat_audio_player.play()
                 self.realtime_chat_is_playing = True
+                # 更新配置中的音频播放状态
+                self.config.runtime_state.audio_playing = True
 
                 # 播放完成后清理临时文件
                 self.realtime_chat_audio_player.mediaStatusChanged.connect(
@@ -457,6 +465,8 @@ class RealtimeChatPage(QWidget):
     def on_audio_finished(self, temp_path):
         """实时聊天音频播放完成"""
         self.realtime_chat_is_playing = False
+        # 更新配置中的音频播放状态
+        self.config.runtime_state.audio_playing = False
         try:
             os.remove(temp_path)
         except:
