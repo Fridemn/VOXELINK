@@ -189,36 +189,22 @@ class Live2DWidget(QOpenGLWidget):
             base_open = 0.2   # 更高的基础嘴巴张开值
             self.mouth_open_value = base_open + (math.sin(self.mouth_animation_timer * frequency) + 1) * 0.5 * amplitude
             
-            # 调试：只在第一次音频播放时检查参数
-            if not hasattr(self, '_debugged_params'):
-                print(f"[调试] 开始音频播放，检查嘴巴参数...")
-                self._debugged_params = True
-            
-            # 设置嘴巴参数 - 尝试常见的嘴巴参数名
-            mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth", 
-                           "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+            # 设置嘴巴参数 - 使用模型配置中的参数
+            mouth_params = ["ParamMouthOpenY"]  # 嘴　张开和闭合
             param_set = False
             for param in mouth_params:
                 try:
-                    # 直接尝试设置参数，看是否成功
                     self.model.SetParameterValue(param, self.mouth_open_value)
-                    if not param_set:  # 只打印第一次成功的参数
-                        print(f"[口型动画] 设置参数: {param} = {self.mouth_open_value:.2f}")
                     param_set = True
+                    break
                 except Exception as e:
-                    # 不打印失败信息，避免过多输出
                     continue
-            
-            if not param_set and not hasattr(self, '_warned_no_param'):
-                print("[口型动画] 警告: 无法设置任何嘴巴参数，模型可能不支持口型动画")
-                self._warned_no_param = True
                 
         else:
             # 音频未播放时，关闭嘴巴
             if self.mouth_open_value > 0.01:  # 如果嘴巴开着，逐渐关闭
                 self.mouth_open_value *= 0.7  # 更快地关闭嘴巴
-                mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth",
-                               "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+                mouth_params = ["ParamMouthOpenY"]  # 嘴　张开和闭合
                 for param in mouth_params:
                     try:
                         self.model.SetParameterValue(param, self.mouth_open_value)
@@ -229,8 +215,7 @@ class Live2DWidget(QOpenGLWidget):
                 self.mouth_open_value = 0.0  # 完全关闭嘴巴
                 self.mouth_animation_timer = 0
                 # 确保嘴巴完全关闭，设置参数值为0
-                mouth_params = ["Mouth", "MouthOpen", "MouthOpenY", "ParamMouthOpenY", "ParamMouth",
-                               "ParamMouthOpen", "ParamMouthA", "mouth", "mouth_open"]
+                mouth_params = ["ParamMouthOpenY"]  # 嘴　张开和闭合
                 for param in mouth_params:
                     try:
                         self.model.SetParameterValue(param, 0.0)
