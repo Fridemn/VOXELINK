@@ -27,9 +27,6 @@ parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
 def create_app(enable_stt: bool = False, enable_tts: bool = False):
     """创建FastAPI应用"""
     
-    # 创建应用配置实例
-    app_config = AppConfig()
-    
     app = FastAPI(title="VOXELINK Backend", description="Voxelink Backend with integrated STT/TTS", version="0.1.0")
 
     # 注册 SQLite + Tortoise ORM 服务

@@ -106,12 +106,6 @@ class ServerPage(QWidget):
             return
 
         self.output_text.clear()
-        self.output_text.append("🚀 启动 VOXELINK 后端服务...")
-        self.output_text.append(f"📍 主机: {host}")
-        self.output_text.append(f"🔌 端口: {port_int}")
-
-        services = ["后端", "STT", "TTS"]
-        self.output_text.append(f"📦 启用的服务: {', '.join(services)}")
 
         self.server_thread = ServerThread(host, port_int, enable_stt, enable_tts)
         self.server_thread.output_signal.connect(self.append_output)
