@@ -102,4 +102,3 @@ class ServerThread(QThread):
     def stop(self):
         if self.process and self.process.state() == QProcess.ProcessState.Running:
             self.process.kill()
-            self.process.waitForFinished(3000)

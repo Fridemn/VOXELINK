@@ -116,7 +116,6 @@ class ServerPage(QWidget):
         self.stop_button.setEnabled(True)
         self.server_ready = False
 
-        # 不再使用固定延时，而是通过监听服务器输出来判断启动完成
 
     def stop_server(self):
         # 重置服务器状态
@@ -128,8 +127,8 @@ class ServerPage(QWidget):
 
         if self.server_thread:
             self.server_thread.stop()
-            self.server_thread.wait(5000)
-            self.on_server_finished()
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
 
     def append_output(self, text):
         # 过滤ANSI转义序列（颜色代码等）
