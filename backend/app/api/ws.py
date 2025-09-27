@@ -80,7 +80,7 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
     try:
         # 建立连接
         await manager.connect(websocket)
-        logger.info("自动Pipeline WebSocket连接已建立")
+        logger.info("实时语音聊天连接已建立")
 
         # 获取服务实例
         asr_service = get_asr_service()
@@ -89,7 +89,7 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
         # 发送连接成功消息
         await manager.send_json(websocket, {
             "success": True,
-            "message": "自动Pipeline WebSocket连接已建立",
+            "message": "实时语音聊天连接已建立",
             "description": "语音输入(STT)完成后自动触发LLM处理和TTS输出的完整pipeline"
         })
 

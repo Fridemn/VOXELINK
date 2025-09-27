@@ -126,11 +126,26 @@ class VoxelinkGUI(QMainWindow):
             theme_action.triggered.connect(lambda checked, t=theme: self.change_theme(t))
             theme_menu.addAction(theme_action)
         
+        # 全屏切换
+        fullscreen_action = QAction('全屏(&F)', self)
+        fullscreen_action.setShortcut('F11')
+        fullscreen_action.setCheckable(True)
+        fullscreen_action.triggered.connect(self.toggle_fullscreen)
+        view_menu.addAction(fullscreen_action)
+        
         # 帮助菜单
         help_menu = menubar.addMenu('帮助(&H)')
-        about_action = QAction('关于 VOXELINK', self)
-        about_action.triggered.connect(self.show_about)
-        help_menu.addAction(about_action)
+
+        
+        # 文档
+        docs_action = QAction('文档(&D)', self)
+        docs_action.triggered.connect(self.show_docs)
+        help_menu.addAction(docs_action)
+        
+        # 反馈
+        feedback_action = QAction('反馈(&F)', self)
+        feedback_action.triggered.connect(self.show_feedback)
+        help_menu.addAction(feedback_action)
     
     def get_theme_display_name(self, theme):
         """获取主题显示名称"""
@@ -172,14 +187,28 @@ class VoxelinkGUI(QMainWindow):
                     for action in menu.actions():
                         action.setChecked(self.get_theme_display_name(theme_name) == action.text())
     
-    def show_about(self):
-        """显示关于对话框"""
+    def toggle_fullscreen(self):
+        """切换全屏模式"""
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+    
+    def show_docs(self):
+        """显示文档"""
+        import webbrowser
+        # 假设文档URL，实际应替换为真实URL
+        docs_url = "https://github.com/Fridemn/VOXELINK"
+        webbrowser.open(docs_url)
+    
+    def show_feedback(self):
+        """显示反馈"""
         from PyQt6.QtWidgets import QMessageBox
-        QMessageBox.about(self, "关于 VOXELINK", 
-                         "VOXELINK v1.0\\n\\n"
-                         "一个现代化的语音交互系统\\n"
-                         "支持实时语音识别、合成和对话\\n\\n"
-                         "© 2025 VOXELINK Team")
+        QMessageBox.information(self, '反馈', 
+                               '请通过以下方式提供反馈：\n\n'
+                               'GitHub Issues: https://github.com/Fridemn/VOXELINK/issues\n'
+                               '邮箱: fridemn@qq.com')
+
 
     def change_page(self, index):
         self.stacked_widget.setCurrentIndex(index)

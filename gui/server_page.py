@@ -35,45 +35,43 @@ class ServerPage(QWidget):
         layout = QVBoxLayout(self)
 
         # 标题
-        title_label = QLabel("🚀 VOXELINK 后端服务启动器")
+        title_label = QLabel("🚀 VOXELINK 启动器")
         title_label.setObjectName("title_label")
         title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
-        # 服务器配置组
-        server_group = QGroupBox("服务器配置")
+        # 后端配置组
+        server_group = QGroupBox("后端配置")
         server_layout = QVBoxLayout(server_group)
 
-        # 主机和端口
+        # 主机和端口及按钮在一行，每部分占1/3宽度
         host_layout = QHBoxLayout()
-        host_layout.addWidget(QLabel("主机:"))
+
+        host_part = QHBoxLayout()
+        host_part.addWidget(QLabel("主机:"))
         self.host_input = QLineEdit(self.config['gui']['server']['default_host'])
-        host_layout.addWidget(self.host_input)
-        host_layout.addWidget(QLabel("端口:"))
+        host_part.addWidget(self.host_input)
+        host_layout.addLayout(host_part, 1)
+
+        port_part = QHBoxLayout()
+        port_part.addWidget(QLabel("端口:"))
         self.port_input = QLineEdit(str(self.config['gui']['server']['default_port']))
-        host_layout.addWidget(self.port_input)
+        port_part.addWidget(self.port_input)
+        host_layout.addLayout(port_part, 1)
+
+        button_part = QHBoxLayout()
+        self.toggle_button = QPushButton("▶️ 启动服务")
+        self.toggle_button.setObjectName("toggle_button")
+        self.toggle_button.clicked.connect(self.toggle_server)
+        button_part.addWidget(self.toggle_button)
+        host_layout.addLayout(button_part, 1)
+
         server_layout.addLayout(host_layout)
 
         layout.addWidget(server_group)
 
-        # 控制按钮
-        button_layout = QHBoxLayout()
-
-        self.start_button = QPushButton("▶️ 启动服务")
-        self.start_button.setObjectName("start_button")
-        self.start_button.clicked.connect(self.start_server)
-        button_layout.addWidget(self.start_button)
-
-        self.stop_button = QPushButton("⏹️ 停止服务")
-        self.stop_button.setObjectName("stop_button")
-        self.stop_button.clicked.connect(self.stop_server)
-        self.stop_button.setEnabled(False)
-        button_layout.addWidget(self.stop_button)
-
-        layout.addLayout(button_layout)
-
         # 输出区域
-        output_group = QGroupBox("服务器输出")
+        output_group = QGroupBox("后端输出")
         output_layout = QVBoxLayout(output_group)
 
         self.output_text = QTextEdit()
@@ -84,6 +82,12 @@ class ServerPage(QWidget):
         output_layout.addWidget(self.output_text)
 
         layout.addWidget(output_group)
+
+    def toggle_server(self):
+        if self.server_thread and self.server_thread.isRunning():
+            self.stop_server()
+        else:
+            self.start_server()
 
     def start_server(self):
         if self.server_thread and self.server_thread.isRunning():
@@ -114,8 +118,7 @@ class ServerPage(QWidget):
         self.server_thread.finished_signal.connect(self.on_server_finished)
         self.server_thread.start()
 
-        self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
+        self.toggle_button.setText("⏹️ 停止服务")
         self.server_ready = False
         self.server_ready_changed.emit(False)
 
@@ -131,8 +134,7 @@ class ServerPage(QWidget):
 
         if self.server_thread:
             self.server_thread.stop()
-            self.start_button.setEnabled(True)
-            self.stop_button.setEnabled(False)
+        self.toggle_button.setText("▶️ 启动服务")
 
     def append_output(self, text):
         # 过滤ANSI转义序列（颜色代码等）
@@ -149,8 +151,7 @@ class ServerPage(QWidget):
     def on_server_finished(self):
         self.server_ready = False
         self.server_ready_changed.emit(False)
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
+        self.toggle_button.setText("▶️ 启动服务")
 
     def start_websocket_test(self):
         """开始WebSocket连接测试"""

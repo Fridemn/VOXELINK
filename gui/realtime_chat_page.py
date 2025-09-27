@@ -50,6 +50,9 @@ class RealtimeChatPage(QWidget):
         title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
+        # 连接状态和实时控制并排布局
+        main_control_layout = QHBoxLayout()
+        
         # 连接状态
         status_group = QGroupBox("连接状态")
         status_layout = QVBoxLayout(status_group)
@@ -59,19 +62,21 @@ class RealtimeChatPage(QWidget):
         status_layout.addWidget(self.realtime_chat_status_label)
 
         connect_layout = QHBoxLayout()
-        self.realtime_chat_connect_btn = QPushButton("🔗 连接")
+        self.realtime_chat_connect_btn = QPushButton("连接")
         self.realtime_chat_connect_btn.setObjectName("connect_button")
+        self.realtime_chat_connect_btn.setFixedWidth(80)
         self.realtime_chat_connect_btn.clicked.connect(self.connect)
         connect_layout.addWidget(self.realtime_chat_connect_btn)
 
-        self.realtime_chat_disconnect_btn = QPushButton("⛔ 断开")
+        self.realtime_chat_disconnect_btn = QPushButton("断开")
         self.realtime_chat_disconnect_btn.setObjectName("disconnect_button")
+        self.realtime_chat_disconnect_btn.setFixedWidth(80)
         self.realtime_chat_disconnect_btn.clicked.connect(self.disconnect)
         self.realtime_chat_disconnect_btn.setEnabled(False)
         connect_layout.addWidget(self.realtime_chat_disconnect_btn)
 
         status_layout.addLayout(connect_layout)
-        layout.addWidget(status_group)
+        main_control_layout.addWidget(status_group)
 
         # 实时控制
         control_group = QGroupBox("实时控制")
@@ -79,11 +84,13 @@ class RealtimeChatPage(QWidget):
 
         # 录音控制
         record_layout = QHBoxLayout()
-        self.realtime_chat_record_btn = QPushButton("🎤 开始实时录音")
+        self.realtime_chat_record_btn = QPushButton("开始录音")
+        self.realtime_chat_record_btn.setFixedWidth(100)
         self.realtime_chat_record_btn.clicked.connect(self.start_recording)
         record_layout.addWidget(self.realtime_chat_record_btn)
 
-        self.realtime_chat_stop_record_btn = QPushButton("⏹️ 停止录音")
+        self.realtime_chat_stop_record_btn = QPushButton("停止录音")
+        self.realtime_chat_stop_record_btn.setFixedWidth(100)
         self.realtime_chat_stop_record_btn.clicked.connect(self.stop_recording)
         self.realtime_chat_stop_record_btn.setEnabled(False)
         self.realtime_chat_stop_record_btn.setStyleSheet("QPushButton { background-color: #e74c3c; color: white; }")
@@ -105,8 +112,9 @@ class RealtimeChatPage(QWidget):
         status_indicator_layout.addWidget(self.realtime_chat_processing_status)
 
         control_layout.addLayout(status_indicator_layout)
+        main_control_layout.addWidget(control_group)
 
-        layout.addWidget(control_group)
+        layout.addLayout(main_control_layout)
 
         # 聊天记录
         chat_group = QGroupBox("聊天记录")
@@ -255,7 +263,6 @@ class RealtimeChatPage(QWidget):
                     self.play_next_audio()
 
             elif msg_type == "complete":
-                self.add_message("处理完成", "system")
                 self.realtime_chat_current_llm_response = ""
                 self.realtime_chat_is_streaming = False
 
@@ -348,7 +355,6 @@ class RealtimeChatPage(QWidget):
 
             # 如果有累积的音频帧，发送出去
             if self.realtime_chat_speech_frames:
-                self.add_message("录音停止，发送已录制的音频...", "system")
                 self.send_audio_chunk()
 
             self.realtime_chat_record_btn.setEnabled(True)
@@ -416,7 +422,6 @@ class RealtimeChatPage(QWidget):
             })
 
             self.realtime_chat_websocket.sendTextMessage(message)
-            self.add_message("语音已发送，等待处理...", "system")
 
             # 清空已发送的帧
             self.realtime_chat_speech_frames.clear()
