@@ -36,6 +36,9 @@ class VoxelinkGUI(QMainWindow):
         self.init_ui()
         self.setup_menu_bar()
 
+        # 连接服务器状态信号
+        self.server_page.server_ready_changed.connect(self.update_status_bar)
+
     def init_ui(self):
         self.setWindowTitle("🎤 VOXELINK 启动器")
         self.setGeometry(200, 200, 1200, 800)
@@ -97,7 +100,7 @@ class VoxelinkGUI(QMainWindow):
         self.nav_list.setCurrentRow(0)
 
         # 状态栏
-        self.statusBar().showMessage("就绪")
+        self.statusBar().showMessage("服务未启动")
 
         # 启动Live2D桌宠
         self.desktop_pet = start_desktop_pet(self.config)
@@ -180,6 +183,13 @@ class VoxelinkGUI(QMainWindow):
 
     def change_page(self, index):
         self.stacked_widget.setCurrentIndex(index)
+
+    def update_status_bar(self, ready):
+        """更新状态栏消息"""
+        if ready:
+            self.statusBar().showMessage("就绪")
+        else:
+            self.statusBar().showMessage("服务未启动")
 
     def closeEvent(self, event):
         """窗口关闭事件"""

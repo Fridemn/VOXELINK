@@ -6,13 +6,15 @@ VOXELINK GUI 服务器管理页面模块
 import re
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QTextEdit, QGroupBox
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, pyqtSignal
 
 from .threads import ServerThread
 from .utils.websocket_test import WebSocketTester
 
 
 class ServerPage(QWidget):
+    server_ready_changed = pyqtSignal(bool)  # 服务器就绪状态改变信号
+
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -115,11 +117,13 @@ class ServerPage(QWidget):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.server_ready = False
+        self.server_ready_changed.emit(False)
 
 
     def stop_server(self):
         # 重置服务器状态
         self.server_ready = False
+        self.server_ready_changed.emit(False)
         # 清理WebSocket测试资源
         if self.websocket_tester:
             self.websocket_tester.cleanup()
@@ -137,14 +141,14 @@ class ServerPage(QWidget):
         self.output_text.append(clean_text)
 
         # 检测服务器是否已启动完成
-        if not self.server_ready and "Uvicorn running on" in clean_text:
-            self.server_ready = True
+        if "Uvicorn running on" in clean_text:
             self.output_text.append("🎯 检测到后端服务启动完成")
             # 延迟2秒后开始WebSocket测试，确保服务完全可用
             QTimer.singleShot(2000, self.start_websocket_test)
 
     def on_server_finished(self):
         self.server_ready = False
+        self.server_ready_changed.emit(False)
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
@@ -171,7 +175,11 @@ class ServerPage(QWidget):
     def on_websocket_test_completed(self, success, message):
         """WebSocket测试完成回调"""
         if success:
+            self.server_ready = True
+            self.server_ready_changed.emit(True)
             self.output_text.append("✅ " + message)
             self.output_text.append("📝 服务启动正常")
         else:
+            self.server_ready = False
+            self.server_ready_changed.emit(False)
             self.output_text.append("❌ " + message)
