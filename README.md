@@ -20,18 +20,18 @@ VOXELINK 是一个集成了语音识别(STT)、语音合成(TTS)和大语言模�
 ### 安装依赖
 
 ```bash
-# 安装后端依赖
+conda create -n voxelink python=3.10 -y
+conda activate voxelink
+pip install -r requirements.txt
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 cd backend
-pip install -r requirements.txt
-
-# 安装STT模块依赖 (可选)
-cd app/core/stt
-pip install -r requirements.txt
-
-# 安装TTS模块依赖 (可选)
-cd app/core/tts
-pip install -r requirements.txt
+git lfs install
+git clone https://huggingface.co/FunAudioLLM/SenseVoiceSmall
+cd ..
 ```
+GPT_SoVits 模型
+
+live2d 模型
 
 ### 启动服务
 
