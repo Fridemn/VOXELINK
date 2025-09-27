@@ -26,18 +26,6 @@ class ServerPage(QWidget):
         title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         layout.addWidget(title_label)
 
-        # 服务配置组
-        config_group = QGroupBox("服务配置")
-        config_layout = QVBoxLayout(config_group)
-
-        # STT 和 TTS 复选框
-        self.stt_checkbox = QCheckBox("启用语音识别 (STT) 服务")
-        self.tts_checkbox = QCheckBox("启用语音合成 (TTS) 服务")
-        config_layout.addWidget(self.stt_checkbox)
-        config_layout.addWidget(self.tts_checkbox)
-
-        layout.addWidget(config_group)
-
         # 服务器配置组
         server_group = QGroupBox("服务器配置")
         server_layout = QVBoxLayout(server_group)
@@ -90,8 +78,8 @@ class ServerPage(QWidget):
 
         host = self.host_input.text()
         port = self.port_input.text()
-        enable_stt = self.stt_checkbox.isChecked()
-        enable_tts = self.tts_checkbox.isChecked()
+        enable_stt = True
+        enable_tts = True
 
         try:
             port_int = int(port)
@@ -104,11 +92,7 @@ class ServerPage(QWidget):
         self.output_text.append(f"📍 主机: {host}")
         self.output_text.append(f"🔌 端口: {port_int}")
 
-        services = ["后端"]
-        if enable_stt:
-            services.append("STT")
-        if enable_tts:
-            services.append("TTS")
+        services = ["后端", "STT", "TTS"]
         self.output_text.append(f"📦 启用的服务: {', '.join(services)}")
 
         self.server_thread = ServerThread(host, port_int, enable_stt, enable_tts)
