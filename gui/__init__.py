@@ -10,7 +10,7 @@ import os
 import signal
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 
 from .main_window import VoxelinkGUI
 from .modern_styles import style_manager
@@ -46,8 +46,9 @@ def main():
     else:
         window.show()
     
-    # 设置应用程序图标 (如果有的话)
-    # app.setWindowIcon(QIcon("icon.png"))
+    # 设置应用程序图标
+    logo_path = os.path.join(os.path.dirname(__file__), "..", "static", "assets", "logo.jpg")
+    app.setWindowIcon(QIcon(logo_path))
     
     # 安装信号处理器以允许 Ctrl+C 中断
     def signal_handler(signum, frame):
