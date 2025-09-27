@@ -51,7 +51,6 @@ class ChatProcess:
         self,
         model: Optional[str],
         message: Optional[str],
-        history_id: Optional[str],
         role: MessageRole,
         stream: bool,
         stt: bool,
@@ -65,14 +64,12 @@ class ChatProcess:
         Args:
             model: LLM模型名称
             message: 文本消息
-            history_id: 对话历史ID
             role: 消息角色
             stream: 是否流式响应
             stt: 是否需要语音转文本
             tts: 是否需要文本转语音
             audio_file: 上传的音频文件
             user_id: 用户ID
-            user_token: 用户认证token，用于TTS服务
 
         Returns:
             StreamingResponse或Response
@@ -84,12 +81,10 @@ class ChatProcess:
         try:
             # 确保参数合法
             model = model or DEFAULT_MODEL
-            history_id = history_id if history_id and history_id.strip() else None
 
             # 准备输入消息
             input_message = await self._prepare_input_message(
                 message,
-                history_id,
                 role,
                 stt,
                 audio_file,
@@ -102,10 +97,10 @@ class ChatProcess:
             # 根据流式处理需求选择处理方式
             if stream:
                 return await self._handle_stream_response(
-                    model, input_message, history_id, user_id, stt, tts, transcribed_text
+                    model, input_message, user_id, stt, tts, transcribed_text
                 )
             else:
-                return await self._handle_normal_response(model, input_message, history_id, user_id, tts)
+                return await self._handle_normal_response(model, input_message, user_id, tts)
 
         except HTTPException:
             raise
@@ -117,7 +112,6 @@ class ChatProcess:
     async def _prepare_input_message(
         self,
         message: Optional[str],
-        history_id: Optional[str],
         role: MessageRole,
         stt: bool = False,
         audio_file: Optional[UploadFile] = None,
@@ -127,7 +121,6 @@ class ChatProcess:
 
         Args:
             message: 文本消息
-            history_id: 对话历史ID
             role: 消息角色
             stt: 是否需要语音转文本
             audio_file: 上传的音频文件
@@ -169,14 +162,14 @@ class ChatProcess:
                 logger.info(f"语音识别成功: {transcribed_text}")
                 
                 # 使用识别的文本构造消息
-                return Message.from_text(text=transcribed_text, history_id=history_id or "", role=role)
+                return Message.from_text(text=transcribed_text, role=role)
 
             # 处理纯文本输入
             if not message or not message.strip():
                 raise HTTPException(status_code=400, detail="消息内容不能为空")
 
             # 构造输入消息
-            return Message.from_text(text=message, history_id=history_id or "", role=role)
+            return Message.from_text(text=message, role=role)
 
         except Exception as e:
             logger.error(f"准备输入消息失败: {str(e)}")
@@ -186,7 +179,6 @@ class ChatProcess:
         self,
         model: str,
         input_message: Message,
-        history_id: Optional[str],
         user_id: Optional[str],
         stt: bool,
         tts: bool,
@@ -228,7 +220,7 @@ class ChatProcess:
 
             async def collect_text():
                 async for chunk in get_text_process().process_message_stream(
-                    model, input_message, None, user_id, skip_db=False
+                    model, input_message, skip_db=False
                 ):
                     await text_queue.put(chunk)
                 await text_queue.put(None)
@@ -238,9 +230,6 @@ class ChatProcess:
             try:
                 count = 0
                 full_response_text = ""  # 收集完整响应用于TTS
-                token_info = None  # 保存token信息
-                message_id = None  # 保存原始消息ID
-                current_history_id = history_id or input_message.history_id  # 使用有效的历史ID
 
                 # 如果是语音输入，先返回识别结果
                 if stt and transcribed_text:
@@ -253,50 +242,36 @@ class ChatProcess:
                         break
                     count += 1
 
-                    # 检查是否是token信息特殊标记
-                    if chunk.startswith("__TOKEN_INFO__"):
+                    # 收集完整响应文本用于TTS
+                    full_response_text += chunk
+                    # 将普通文本块包装为SSE格式
+                    response_text = f"data: {json.dumps({'text': chunk})}\n\n"
+                    yield response_text
+                    
+                    # 检查是否有音频准备好
+                    if tts:
                         try:
-                            token_data = json.loads(chunk[14:])  # 去掉特殊前缀
-                            token_info = token_data
-                            message_id = token_data.get("message_id")
-                            # 如果token信息中包含了history_id，使用它更新当前历史ID
-                            if "history_id" in token_data and token_data["history_id"]:
-                                current_history_id = token_data["history_id"]
-                            token_response = f"data: {json.dumps({'token_info': token_data})}\n\n"
-                            yield token_response
-                        except Exception as e:
-                            logger.error(f"处理token信息失败: {str(e)}")
-                    else:
-                        # 收集完整响应文本用于TTS
-                        full_response_text += chunk
-                        # 将普通文本块包装为SSE格式
-                        response_text = f"data: {json.dumps({'text': chunk})}\n\n"
-                        yield response_text
+                            audio_data = await asyncio.wait_for(yield_queue.get(), timeout=0.01)
+                            yield audio_data
+                            yield_queue.task_done()
+                        except asyncio.TimeoutError:
+                            pass
                         
-                        # 检查是否有音频准备好
-                        if tts:
-                            try:
-                                audio_data = await asyncio.wait_for(yield_queue.get(), timeout=0.01)
-                                yield audio_data
-                                yield_queue.task_done()
-                            except asyncio.TimeoutError:
-                                pass
-                            
-                            text_buffer += chunk
-                            parts = sentence_delimiters.split(text_buffer)
-                            
-                            # 处理切分后的部分
-                            for i in range(len(parts) // 2):
-                                sentence = parts[2*i] + parts[2*i+1]
-                                if sentence.strip():
-                                    logger.debug(f"将句子放入TTS队列: '{sentence.strip()}'")
-                                    await tts_queue.put(sentence.strip())
-                            
-                            # 更新缓冲区为剩余的未切分部分
-                            if len(parts) % 2 == 1:
-                                text_buffer = parts[-1]
-                            else:
-                                text_buffer = ""
+                        text_buffer += chunk
+                        parts = sentence_delimiters.split(text_buffer)
+                        
+                        # 处理切分后的部分
+                        for i in range(len(parts) // 2):
+                            sentence = parts[2*i] + parts[2*i+1]
+                            if sentence.strip():
+                                logger.debug(f"将句子放入TTS队列: '{sentence.strip()}'")
+                                await tts_queue.put(sentence.strip())
+                        
+                        # 更新缓冲区为剩余的未切分部分
+                        if len(parts) % 2 == 1:
+                            text_buffer = parts[-1]
+                        else:
+                            text_buffer = ""
 
 
                 # 如果没有生成任何内容
@@ -342,7 +317,6 @@ class ChatProcess:
         self,
         model: str,
         input_message: Message,
-        history_id: Optional[str],
         user_id: Optional[str],
         tts: bool = False,
     ) -> Union[Response, Dict[str, Any]]:
@@ -352,7 +326,6 @@ class ChatProcess:
         Args:
             model: LLM模型名称
             input_message: 输入消息
-            history_id: 历史ID（已废弃）
             user_id: 用户ID
             tts: 是否需要文本转语音
 
@@ -361,7 +334,7 @@ class ChatProcess:
         """
         try:
             # 使用文本处理流水线处理消息
-            response = await get_text_process().process_message(model, input_message, None, user_id, skip_db=False)
+            response = await get_text_process().process_message(model, input_message, skip_db=False)
 
             # 如果需要TTS处理
             if tts and response and hasattr(response, "response_text"):

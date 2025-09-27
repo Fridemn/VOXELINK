@@ -96,11 +96,6 @@ DEFAULT_CONFIG = {
         "use_tz": get_config_value("database.use_tz", bool, True),
         "time_zone": get_config_value("database.time_zone", str, "Asia/Shanghai"),
     },
-    "jwt": {
-        "secret_key": get_config_value("jwt.secret_key", str, "your-secret-key-here"),
-        "algorithm": get_config_value("jwt.algorithm", str, "HS256"),
-        "access_token_expire_minutes": get_config_value("jwt.access_token_expire_minutes", int, 30),
-    },
 }
 
 # TTS服务配置

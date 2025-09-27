@@ -62,18 +62,17 @@ class LLMService:
         logger.info(f"文本清理: '{text}' -> '{cleaned_text}'")
         return cleaned_text
         
-    async def send_to_llm(self, message: str, token: str, tts: Optional[bool] = None) -> Optional[Dict[Any, Any]]:
+    async def send_to_llm(self, message: str, tts: Optional[bool] = None) -> Optional[Dict[Any, Any]]:
         """
         将识别到的文本发送给大语言模型
         
         Args:
             message: 识别到的文本内容
-            token: 用户token
             
         Returns:
             LLM的响应结果，如果失败返回None
         """
-        logger.info(f"LLM服务调用开始 - enabled: {self.enabled}, api_url: {self.api_url}, token长度: {len(token)}")
+        logger.info(f"LLM服务调用开始 - enabled: {self.enabled}, api_url: {self.api_url}")
         
         if not self.enabled:
             logger.warning("LLM服务未启用")
@@ -81,10 +80,6 @@ class LLMService:
             
         if not self.api_url:
             logger.warning("LLM API URL未配置")
-            return None
-            
-        if not token:
-            logger.warning("用户token为空")
             return None
             
         # 清理ASR文本
@@ -97,8 +92,8 @@ class LLMService:
             return None
             
         try:
-            # 准备请求URL（token作为query参数）
-            url_with_token = f"{self.api_url}?token={token}"
+            # 使用API URL
+            url = self.api_url
             
             # 准备请求体（application/x-www-form-urlencoded格式）
             form_data = {
@@ -110,7 +105,7 @@ class LLMService:
             }
             
             logger.info(f"发送给LLM: {cleaned_message}")
-            logger.info(f"请求URL: {url_with_token}")
+            logger.info(f"请求URL: {url}")
             logger.info(f"表单数据: {form_data}")
             
             # 从配置中获取超时设置
@@ -129,7 +124,7 @@ class LLMService:
             
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
-                    url_with_token,
+                    url,
                     data=form_data,
                     headers={
                         "Content-Type": "application/x-www-form-urlencoded"
@@ -182,7 +177,6 @@ class LLMService:
         """
         try:
             full_text = ""
-            token_info = None
             
             async for line in response.content:
                 line = line.decode('utf-8').strip()
@@ -201,10 +195,6 @@ class LLMService:
                             # 累积文本
                             full_text += data['text']
                             
-                        if 'token_info' in data:
-                            # 保存token信息
-                            token_info = data['token_info']
-                            
                     except json.JSONDecodeError:
                         # 跳过无效的JSON行
                         continue
@@ -214,9 +204,6 @@ class LLMService:
                 "text": full_text,
                 "stream": True
             }
-            
-            if token_info:
-                result["token_info"] = token_info
             
             logger.info(f"流式响应处理完成，文本长度: {len(full_text)}")
             return result

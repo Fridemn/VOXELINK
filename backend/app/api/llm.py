@@ -66,7 +66,6 @@ async def unified_chat(
         return await chat_process.handle_request(
             model=model,
             message=message,
-            history_id=None,  # 不再使用history_id
             role=role,
             stream=stream,
             stt=stt,

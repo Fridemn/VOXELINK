@@ -10,19 +10,17 @@ import os
 import sys
 import traceback
 import warnings
-from typing import Optional, List, Union, Dict
+from typing import Optional, List, Union
 import tempfile
 import base64
 import io
-import time
-import asyncio
 from pathlib import Path
 
 import torch
 import torchaudio
 import librosa
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 
@@ -71,43 +69,6 @@ def map_language_param(language_en):
 def map_cut_method_param(cut_method_en):
     """映射英文切分方式参数到中文"""
     return CUT_METHOD_MAP.get(cut_method_en, cut_method_en)
-
-# WebSocket连接管理器
-class WebSocketManager:
-    def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, token: str):
-        await websocket.accept()
-        if token not in self.active_connections:
-            self.active_connections[token] = []
-        self.active_connections[token].append(websocket)
-        logger.info(f"WebSocket连接建立，token: {token}")
-
-    def disconnect(self, websocket: WebSocket, token: str):
-        if token in self.active_connections:
-            if websocket in self.active_connections[token]:
-                self.active_connections[token].remove(websocket)
-            if not self.active_connections[token]:
-                del self.active_connections[token]
-        logger.info(f"WebSocket连接断开，token: {token}")
-
-    async def send_audio_to_token(self, token: str, audio_data: dict):
-        if token in self.active_connections:
-            disconnected = []
-            for connection in self.active_connections[token]:
-                try:
-                    await connection.send_json(audio_data)
-                except Exception as e:
-                    logger.warning(f"发送音频数据失败: {e}")
-                    disconnected.append(connection)
-
-            # 移除断开的连接
-            for conn in disconnected:
-                self.disconnect(conn, token)
-
-# 创建WebSocket管理器实例
-websocket_manager = WebSocketManager()
 
 # 数据模型定义
 class TTSRequest(BaseModel):
@@ -276,8 +237,7 @@ async def text_to_speech(
     character: str = Form(None, description="角色名称"),
     mood: str = Form(None, description="情绪"),
     text_language: str = Form(None, description="合成文本的语言"),
-    how_to_cut: str = Form(None, description="文本切分方式"),
-    token: str = Form(None, description="WebSocket推送token，如果提供则通过WebSocket推送音频")
+    how_to_cut: str = Form(None, description="文本切分方式")
 ):
     """
     执行语音合成
@@ -287,7 +247,6 @@ async def text_to_speech(
     - **mood**: 情绪（可选，默认使用角色的默认情绪或normal）
     - **text_language**: 合成文本的语言（可选，默认使用配置文件）
     - **how_to_cut**: 文本切分方式（可选，默认使用配置文件）
-    - **token**: WebSocket推送token，如果提供则通过WebSocket推送音频
     """
     try:
         # 检查模型是否已加载
@@ -383,44 +342,6 @@ async def text_to_speech(
         if sr is None or audio_data is None:
             raise HTTPException(status_code=500, detail="音频生成失败")
 
-        # 如果提供了token，则通过WebSocket推送音频
-        if token and token.strip():
-            try:
-                # 将音频数据转换为 Base64 (OGG)
-                buffer = io.BytesIO()
-                if isinstance(audio_data, np.ndarray):
-                    audio_tensor = torch.from_numpy(audio_data.astype(np.float32)) / 32767.0
-                else:
-                    audio_tensor = audio_data
-                # 保存为ogg格式
-                torchaudio.save(buffer, audio_tensor.unsqueeze(0), sr, format="ogg", encoding="vorbis")
-                buffer.seek(0)
-                # 编码为 Base64
-                audio_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-                # 构建音频数据包
-                audio_packet = {
-                    "type": "audio",
-                    "timestamp": int(time.time() * 1000),  # 毫秒时间戳
-                    "audio_base64": audio_base64,
-                    "sample_rate": sr,
-                    "character": default_character,
-                    "mood": default_mood,
-                    "text": text,
-                    "message": "音频生成成功",
-                    "audio_format": "ogg"
-                }
-                # 通过WebSocket推送音频
-                await websocket_manager.send_audio_to_token(token, audio_packet)
-                return {
-                    "message": "音频已通过WebSocket推送",
-                    "token": token,
-                    "timestamp": audio_packet["timestamp"],
-                    "character": default_character,
-                    "mood": default_mood
-                }
-            except Exception as e:
-                logger.error(f"WebSocket推送失败: {str(e)}")
-                # 如果WebSocket推送失败，继续执行正常的文件返回逻辑
         # 将音频数据保存到临时文件（OGG）
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_output:
             # 确保音频数据是正确的格式
@@ -461,8 +382,7 @@ async def text_to_speech_base64(
     character: str = Form(None, description="角色名称"),
     mood: str = Form(None, description="情绪"),
     text_language: str = Form(None, description="合成文本的语言"),
-    how_to_cut: str = Form(None, description="文本切分方式"),
-    token: str = Form(None, description="WebSocket推送token，如果提供则通过WebSocket推送音频")
+    how_to_cut: str = Form(None, description="文本切分方式")
 ):
     """
     执行语音合成并返回 Base64 编码的音频数据
@@ -472,7 +392,6 @@ async def text_to_speech_base64(
     - **mood**: 情绪（可选，默认使用角色的默认情绪或normal）
     - **text_language**: 合成文本的语言（可选，默认使用配置文件）
     - **how_to_cut**: 文本切分方式（可选，默认使用配置文件）
-    - **token**: WebSocket推送token，如果提供则通过WebSocket推送音频
     """
     try:
         # 检查模型是否已加载
@@ -578,33 +497,6 @@ async def text_to_speech_base64(
         buffer.seek(0)
         # 编码为 Base64
         audio_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        # 如果提供了token，则通过WebSocket推送音频
-        if token and token.strip():
-            try:
-                # 构建音频数据包
-                audio_packet = {
-                    "type": "audio",
-                    "timestamp": int(time.time() * 1000),  # 毫秒时间戳
-                    "audio_base64": audio_base64,
-                    "sample_rate": sr,
-                    "character": default_character,
-                    "mood": default_mood,
-                    "text": text,
-                    "message": "音频生成成功",
-                    "audio_format": "ogg"
-                }
-                # 通过WebSocket推送音频
-                await websocket_manager.send_audio_to_token(token, audio_packet)
-                return {
-                    "message": "音频已通过WebSocket推送",
-                    "token": token,
-                    "timestamp": audio_packet["timestamp"],
-                    "character": default_character,
-                    "mood": default_mood
-                }
-            except Exception as e:
-                logger.error(f"WebSocket推送失败: {str(e)}")
-                # 如果WebSocket推送失败，继续执行正常的返回逻辑
         return {
             "audio_base64": audio_base64,
             "sample_rate": sr,
@@ -620,27 +512,6 @@ async def text_to_speech_base64(
         logger.error(f"TTS 合成失败: {str(e)}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"TTS 合成失败: {str(e)}")
-
-# WebSocket端点
-@router.websocket("/ws/{token}")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    """
-    WebSocket端点，用于接收音频流
-
-    - **token**: 客户端token，用于标识不同的客户端
-    """
-    await websocket_manager.connect(websocket, token)
-    try:
-        while True:
-            # 等待客户端消息（心跳包等）
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text("pong")
-    except WebSocketDisconnect:
-        websocket_manager.disconnect(websocket, token)
-    except Exception as e:
-        logger.error(f"WebSocket错误: {str(e)}")
-        websocket_manager.disconnect(websocket, token)
 
 @router.get("/characters", summary="获取角色和情绪列表")
 async def get_characters():

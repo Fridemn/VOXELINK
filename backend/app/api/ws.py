@@ -192,7 +192,6 @@ async def realtime_chat_websocket_endpoint(websocket: WebSocket):
                             response = await chat_process.handle_request(
                                 model=session_state["model"],
                                 message=recognized_text,  # 使用STT识别的文本
-                                history_id=None,
                                 role="user",
                                 stream=session_state["stream"],
                                 stt=False,  # STT已经完成，不需要再做

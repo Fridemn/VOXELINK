@@ -53,11 +53,6 @@
     "use_tz": true,
     "time_zone": "Asia/Shanghai"
   },
-  "jwt": {
-    "secret_key": "your-secret-key-here",
-    "algorithm": "HS256",
-    "access_token_expire_minutes": 30
-  },
   "tts_config": {
     "base_url": "http://localhost:9880",
     "default_character": "march7",

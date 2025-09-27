@@ -127,7 +127,7 @@ class TextProcess:
         return " ".join(text_parts) if text_parts else ""
 
     async def process_message(
-        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None, skip_db: bool = False
+        self, model: str, message: Message, skip_db: bool = False
     ) -> Response:
         model = model or DEFAULT_MODEL
         if model not in self.llm_instances:
@@ -198,7 +198,7 @@ class TextProcess:
             raise
 
     async def process_message_stream(
-        self, model: str, message: Message, history_id: Optional[str] = None, user_id: Optional[str] = None, skip_db: bool = False
+        self, model: str, message: Message, skip_db: bool = False
     ) -> AsyncGenerator[str, None]:
         """流式处理消息并返回生成器"""
         model = model or DEFAULT_MODEL

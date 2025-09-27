@@ -12,7 +12,6 @@ dependencies = [
     "mem0ai (~=0.1.114)",
     "openai (~=1.76)",
     "python-multipart (~=0.0)",
-    "tiktoken (~=0.9)",
     "tortoise-orm (~=0.24)",
     "uvicorn (~=0.35)",
 ]
