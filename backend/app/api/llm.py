@@ -87,17 +87,17 @@ async def unified_chat(
 # ------------------------------
 
 
-@api_llm.get("/history")
-async def get_user_history():
-    """获取历史记录"""
-    try:
-        message_count = await db_message_history.get_message_count()
-        return {
-            "message_count": message_count,
-            "context_window": db_message_history.context_window
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取历史记录失败: {str(e)}")
+# @api_llm.get("/history")
+# async def get_user_history():
+#     """获取历史记录"""
+#     try:
+#         message_count = await db_message_history.get_message_count()
+#         return {
+#             "message_count": message_count,
+#             "context_window": db_message_history.context_window
+#         }
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"获取历史记录失败: {str(e)}")
 
 
 @api_llm.get("/history/messages")

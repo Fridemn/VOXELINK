@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt
 from .server_page import ServerPage
 from .realtime_chat_page import RealtimeChatPage
 from .config_page import ConfigPage
+from .history_page import HistoryPage
 from .live2d_desktop_pet import start_desktop_pet
 from .modern_styles import style_manager
 
@@ -30,6 +31,7 @@ class VoxelinkGUI(QMainWindow):
         self.server_page = ServerPage(self.config)
         self.realtime_chat_page = RealtimeChatPage(self.config)
         self.config_page = ConfigPage(self.config)
+        self.history_page = HistoryPage(self.config)
 
         self.init_ui()
         self.setup_menu_bar()
@@ -66,6 +68,10 @@ class VoxelinkGUI(QMainWindow):
         realtime_chat_item.setFont(QFont("Segoe UI", 11))
         self.nav_list.addItem(realtime_chat_item)
 
+        history_item = QListWidgetItem("💬 历史记录")
+        history_item.setFont(QFont("Segoe UI", 11))
+        self.nav_list.addItem(history_item)
+
         config_item = QListWidgetItem("⚙️ 配置文件管理")
         config_item.setFont(QFont("Segoe UI", 11))
         self.nav_list.addItem(config_item)
@@ -84,6 +90,7 @@ class VoxelinkGUI(QMainWindow):
         # 添加页面到堆栈
         self.stacked_widget.addWidget(self.server_page)
         self.stacked_widget.addWidget(self.realtime_chat_page)
+        self.stacked_widget.addWidget(self.history_page)
         self.stacked_widget.addWidget(self.config_page)
 
         # 设置默认页面
