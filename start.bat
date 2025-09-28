@@ -4,25 +4,15 @@ setlocal enabledelayedexpansion
 REM Change to the script directory
 cd /d "%~dp0"
 
-echo Checking for Conda...
-where conda >nul 2>nul
-if %errorlevel% neq 0 (
-    echo Error: Conda not found. Please install Miniconda or Anaconda and ensure it's in your PATH.
-    pause
-    exit /b 1
-)
-
-echo Activating voxelink environment...
-call conda activate voxelink
-if %errorlevel% neq 0 (
-    echo Error: Failed to activate 'voxelink' environment. Please ensure the environment exists.
-    echo You can create it with: conda create -n voxelink python=3.x
+echo Checking for Python runtime...
+if not exist "runtime\pythonw.exe" (
+    echo Error: Python runtime not found at runtime\pythonw.exe
     pause
     exit /b 1
 )
 
 echo Starting GUI application...
-start "" pythonw gui.py
+start "" runtime\pythonw.exe gui.py
 if %errorlevel% neq 0 (
     echo Error: Failed to start gui.py.
     pause
