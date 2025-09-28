@@ -1,41 +1,75 @@
 # VOXELINK
 
-VOXELINK 是一个集成了语音识别(STT)、语音合成(TTS)和大语言模型的后端服务。
+VOXELINK，即 Voice-link，是可以和二次元老婆进行实时语音聊天（当你说完话后大概 2s 就可以听到美妙的回应了）的项目，集成了语音识别(STT)、语音合成(TTS)和大语言模型(LLM)，目前主推三月~~妻~~。
 
-## 特性
+![三月七](./static/assets/docs/march7.png)
+## ✨ 主要特性
 
-- 🔊 **语音识别 (STT)**: 支持实时语音转文字
-- 🗣️ **语音合成 (TTS)**: 支持文字转语音
-- 🤖 **大语言模型**: 集成多种AI模型
-- 🚀 **统一架构**: 单进程多服务，支持按需启用模块
+- **实时语音识别 (STT)** - 使用 SenseVoice，能够快速识别用户语音并转化为文本
+- **高质量语音合成 (TTS)** - 使用 GPT-SoVITS，语气比较自然
+- **大语言模型（LLM）** - 使用 openai 库，可以自行更换供应商
+- **Live2D** - 集成Live2D角色显示，可自行更换模型
 
-## 快速开始
+![启动](./static/assets/docs/run.png)
+![chat](./static/assets/docs/chat.png)
 
-### 环境要求
+## 🚀 快速开始
 
-- Python 3.8+
-- pip
-- git
+### 系统要求
 
-### 安装依赖
+- **操作系统**: Windows 10/11
+- **Python**: 3.10 或更高版本
+- **显存**：6GB+
+
+### 安装步骤
+
+#### 1. 克隆项目
+
+```bash
+git clone https://github.com/Fridemn/VOXELINK.git
+cd VOXELINK
+```
+
+#### 2. 创建虚拟环境(conda)
 
 ```bash
 conda create -n voxelink python=3.10 -y
 conda activate voxelink
+cd ..
+```
+
+#### 3. 安装依赖
+
+```bash
 pip install -r requirements.txt
+
+# 安装 PyTorch (根据你的CUDA版本选择)
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+#### 4. 下载模型文件
+
+```bash
+# 下载 STT 模型
 cd backend
 git lfs install
 git clone https://huggingface.co/FunAudioLLM/SenseVoiceSmall
-cd ..
+# 下载 GPT-SoVITS 相关模型，太麻烦了，仙人指路：https://github.com/RVC-Boss/GPT-SoVITS
+# 根据喜好自行收集 Live2D 模型并放置在 static/assets/live2d/<your_character> 目录
 ```
-GPT_SoVits 模型
 
-live2d 模型
+### 配置文件
+将backend/config_example.json复制一份为backend/config.json，修改其中的OpenAI API Key等配置项。
 
-### 启动服务
+### 启动应用
 
-#### 方式1: 使用统一启动脚本 (推荐)
+#### 方式3: 使用GUI启动器
+
+```bash
+python gui.py
+```
+
+#### 只启动后端（二次开发）
 
 ```bash
 # 只启动后端服务
@@ -50,193 +84,12 @@ python start.py --enable-tts
 # 启动所有服务
 python start.py --enable-stt --enable-tts
 
-# 启动图形界面 (GUI)
-python start.py --gui
+# 指定端口启动
+python start.py --port 8080
 ```
+## ❤️贡献
+欢迎任何 Issues/Pull Requests！只需要将你的更改提交到此项目 ：)
 
-#### 方式2: 使用图形界面 (GUI)
+---
 
-如果您更喜欢图形化界面，可以使用内置的GUI启动器：
-
-```bash
-python start.py --gui
-```
-
-GUI界面提供：
-- ✅ 直观的配置选项
-- ✅ 实时服务器输出显示
-- ✅ 一键启动/停止服务
-- ✅ 语音聊天功能，支持实时语音对话
-- ✅ 录音、播放和发送音频
-- ✅ 显示语音识别结果和AI回复
-- ✅ 流式输出和TTS音频播放
-```
-
-#### 方式2: 直接启动后端
-
-```bash
-cd backend
-
-# 只启动后端
-python main.py
-
-# 启动后端 + STT
-python main.py --enable-stt
-
-# 启动后端 + TTS
-python main.py --enable-tts
-```
-
-### 服务端口
-
-- **主服务**: http://localhost:8080
-- **API文档**: http://localhost:8080/docs
-- **替代文档**: http://localhost:8080/redoc
-
-## API 接口
-
-### 后端服务
-
-- `GET /` - 服务状态检查
-- `GET /system/*` - 系统相关接口
-- `POST /llm/*` - 大语言模型接口
-
-### STT 服务 (语音识别)
-
-启用 `--enable-stt` 参数后可用：
-
-- `POST /stt/asr/recognize` - 语音识别
-- `GET /stt/asr/models` - 获取可用模型
-- `POST /stt/vpr/register` - 声纹注册
-- `POST /stt/vpr/verify` - 声纹验证
-
-### TTS 服务 (语音合成)
-
-启用 `--enable-tts` 参数后可用：
-
-- `POST /tts/tts` - 语音合成
-- `GET /tts/models/status` - 模型状态
-- `POST /tts/models/switch` - 切换模型
-- `GET /tts/characters` - 获取角色列表
-
-## 配置
-
-### 环境变量
-
-```bash
-# 数据库配置
-DATABASE_URL=sqlite://db.sqlite3
-
-# 服务配置
-HOST=0.0.0.0
-PORT=8080
-
-# STT配置
-STT_MODEL_PATH=/path/to/stt/model
-
-# TTS配置
-TTS_MODEL_PATH=/path/to/tts/model
-```
-
-### 配置文件
-
-- `backend/app/config/` - 应用配置
-- `backend/app/core/stt/config.json` - STT配置
-- `backend/app/core/tts/config.json` - TTS配置
-
-## 开发
-
-### 项目结构
-
-```
-VOXELINK/
-├── backend/                 # 后端服务
-│   ├── main.py             # 主应用入口
-│   ├── app/
-│   │   ├── api/            # API路由
-│   │   ├── core/           # 核心模块
-│   │   │   ├── stt/        # 语音识别模块
-│   │   │   └── tts/       # 语音合成模块
-│   │   ├── models/         # 数据模型
-│   │   └── config/         # 配置
-│   └── static/             # 静态文件
-├── frontend/               # 前端服务
-├── start.py                # 统一启动脚本
-└── README.md
-```
-
-### 添加新模块
-
-1. 在 `backend/app/core/` 下创建新模块
-2. 在 `main.py` 中添加条件路由注册
-3. 更新启动脚本参数
-4. 更新文档
-
-## 部署
-
-### Docker 部署
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY . .
-
-RUN pip install -r backend/requirements.txt
-EXPOSE 8080
-
-CMD ["python", "start.py", "--enable-stt", "--enable-tts"]
-```
-
-### 系统服务
-
-```bash
-# 创建服务文件
-sudo tee /etc/systemd/system/voxellink.service > /dev/null <<EOF
-[Unit]
-Description=VOXELINK Backend Service
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/path/to/voxellink
-ExecStart=/path/to/python start.py --enable-stt --enable-tts
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 启动服务
-sudo systemctl enable voxellink
-sudo systemctl start voxellink
-```
-
-## 故障排除
-
-### 常见问题
-
-1. **模块导入失败**
-   - 检查依赖是否正确安装
-   - 确认模块路径配置正确
-
-2. **端口占用**
-   - 使用 `--port` 参数指定其他端口
-   - 检查端口是否被其他服务占用
-
-3. **模型加载失败**
-   - 检查模型文件是否存在
-   - 确认模型路径配置正确
-
-### 日志
-
-日志文件位于 `backend/logs/` 目录下，按日期命名。
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 许可证
-
-MIT License
+⭐ 如果这个项目对你有帮助，请给我们一个星标！

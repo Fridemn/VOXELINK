@@ -12,11 +12,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo Activating backend environment...
-call conda activate backend
+echo Activating voxelink environment...
+call conda activate voxelink
 if %errorlevel% neq 0 (
-    echo Error: Failed to activate 'backend' environment. Please ensure the environment exists.
-    echo You can create it with: conda create -n backend python=3.x
+    echo Error: Failed to activate 'voxelink' environment. Please ensure the environment exists.
+    echo You can create it with: conda create -n voxelink python=3.x
     pause
     exit /b 1
 )
