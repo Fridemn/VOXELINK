@@ -126,7 +126,6 @@ cython_debug/
 .idea/
 
 # Voice files
-*.wav
 *.mp3
 
 # config

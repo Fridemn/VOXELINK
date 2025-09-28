@@ -44,8 +44,8 @@ def load_tts_config():
         
         # 从统一配置中获取TTS相关配置
         tts_config = app_config.get("tts_config", {})
-        characters_config = app_config.get("characters", {})
-        pretrained_models = app_config.get("pretrained_models", {})
+        characters_config = tts_config.get("characters", {})
+        pretrained_models = tts_config.get("pretrained_models", {})
         
         logger.info(f"从统一配置加载 - tts_config: {bool(tts_config)}, characters_config: {bool(characters_config)}, pretrained_models: {bool(pretrained_models)}")
         logger.info(f"characters keys: {list(characters_config.keys()) if characters_config else 'None'}")

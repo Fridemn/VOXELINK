@@ -24,8 +24,6 @@ MODEL_TO_ENDPOINT = {
     **{model.strip(): "openai" for model in llm_config.get("openai_models", [])},
     # Ollama 模型
     **{model.strip(): "ollama" for model in llm_config.get("ollama_models", [])},
-    # 自定义端点模型
-    **{model.strip(): "custom_endpoint" for model in llm_config.get("custom_endpoint_models", [])},
 }
 DEFAULT_MODEL = llm_config["default_model"]
 
@@ -67,7 +65,6 @@ class TextProcess:
     def _initialize_llms(self):
         # 根据新的配置结构初始化LLM实例
         openai_config = app_config.openai
-        custom_endpoint_config = app_config.custom_endpoint
 
         # 初始化OpenAI模型
         if openai_config:
@@ -85,17 +82,6 @@ class TextProcess:
                 api_key="", base_url=llm_config["ollama_base_url"], model_name=model  # Ollama通常不需要API key
             )
             self.llm_instances[model] = OllamaLLM(llm_config_obj)
-
-        # 初始化自定义端点模型
-        if custom_endpoint_config:
-            for model in llm_config.get("custom_endpoint_models", []):
-                model = model.strip()
-                llm_config_obj = LLMConfig(
-                    api_key=custom_endpoint_config["api_key"],
-                    base_url=llm_config["custom_endpoint_base_url"],
-                    model_name=model,
-                )
-                self.llm_instances[model] = OpenAILLM(llm_config_obj)  # 使用OpenAI兼容格式
 
     def _get_endpoint_for_model(self, model: str) -> str:
         model = model or DEFAULT_MODEL

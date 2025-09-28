@@ -259,7 +259,8 @@ async def text_to_speech(
         # 从全局配置中获取角色配置
         from app.config.default import DEFAULT_CONFIG
         global_config = DEFAULT_CONFIG
-        characters_config = global_config.get("characters", {})
+        tts_config = global_config.get("tts_config", {})
+        characters_config = tts_config.get("characters", {})
 
         # 获取默认角色和情绪
         default_character = character or inference_config.get("default_character", "march7")
@@ -404,7 +405,8 @@ async def text_to_speech_base64(
         # 从全局配置中获取角色配置
         from app.config.default import DEFAULT_CONFIG
         global_config = DEFAULT_CONFIG
-        characters_config = global_config.get("characters", {})
+        tts_config = global_config.get("tts_config", {})
+        characters_config = tts_config.get("characters", {})
 
         # 获取默认角色和情绪
         default_character = character or inference_config.get("default_character", "march7")
@@ -520,7 +522,8 @@ async def get_characters():
         # 从全局配置中获取角色配置
         from app.config.default import DEFAULT_CONFIG
         global_config = DEFAULT_CONFIG
-        characters_config = global_config.get("characters", {})
+        tts_config = global_config.get("tts_config", {})
+        characters_config = tts_config.get("characters", {})
         result = {}
 
         for character_name, character_data in characters_config.items():

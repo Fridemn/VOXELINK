@@ -119,9 +119,7 @@ def create_app(enable_stt: bool = False, enable_tts: bool = False):
                     """加载GSVI配置文件"""
                     # 直接使用后端统一的配置系统
                     from app.config.default import DEFAULT_CONFIG
-                    tts_config = DEFAULT_CONFIG["tts"]["gpt_sovits"]
-                    # 添加characters配置
-                    tts_config["characters"] = DEFAULT_CONFIG["characters"]
+                    tts_config = DEFAULT_CONFIG["tts_config"]
                     logger.info("加载TTS配置")
                     return tts_config
                 
