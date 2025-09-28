@@ -21,9 +21,14 @@ class HistoryPage(QWidget):
         self.config = config
         self.backend_url = f"http://localhost:{self.config.get('server_port', 8080)}"
         self.history_data = []
+        self.server_ready = False
 
         self.init_ui()
         # 移除自动加载历史记录
+
+    def update_server_status(self, ready):
+        """更新服务器状态"""
+        self.server_ready = ready
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -87,6 +92,10 @@ class HistoryPage(QWidget):
 
     def load_history(self):
         """加载历史记录"""
+        if not self.server_ready:
+            QMessageBox.warning(self, "服务未启动", "请先启动服务后再加载历史记录。")
+            return
+
         self.loading_label.show()
 
         # 在后台线程中加载
@@ -157,12 +166,12 @@ class HistoryPage(QWidget):
             message_layout.addWidget(bubble_widget)
 
             # 用户头像
-            avatar_label = self.create_avatar("👤", is_user=True)
+            avatar_label = self.create_avatar(is_user=True)
             message_layout.addWidget(avatar_label)
         else:
             # LLM消息（左对齐）
             # LLM头像
-            avatar_label = self.create_avatar("🤖", is_user=False)
+            avatar_label = self.create_avatar(is_user=False)
             message_layout.addWidget(avatar_label)
 
             # 消息气泡
@@ -206,20 +215,45 @@ class HistoryPage(QWidget):
 
         return bubble_widget
 
-    def create_avatar(self, emoji, is_user=True):
+    def create_avatar(self, is_user=True):
         """创建头像"""
-        avatar_label = QLabel(emoji)
+        avatar_label = QLabel()
         avatar_label.setFixedSize(40, 40)
         avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        avatar_label.setStyleSheet(f"""
-            QLabel {{
-                border-radius: 20px;
-                background-color: {'#007AFF' if is_user else '#34C759'};
-                color: white;
-                font-size: 18px;
-                font-weight: bold;
-            }}
-        """)
+
+        if is_user:
+            pixmap = QPixmap("static/assets/avatars/me.jpg")
+        else:
+            pixmap = QPixmap("static/assets/avatars/waifu.jpg")
+
+        if not pixmap.isNull():
+            # 创建圆形头像
+            size = 40
+            rounded_pixmap = QPixmap(size, size)
+            rounded_pixmap.fill(Qt.GlobalColor.transparent)
+
+            painter = QPainter(rounded_pixmap)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+            # 缩放图片以填充圆形
+            scaled_pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            painter.setBrush(QBrush(scaled_pixmap))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(0, 0, size, size)
+            painter.end()
+
+            avatar_label.setPixmap(rounded_pixmap)
+        else:
+            avatar_label.setText("👤" if is_user else "🤖")
+            avatar_label.setStyleSheet(f"""
+                QLabel {{
+                    border-radius: 20px;
+                    background-color: {'#007AFF' if is_user else '#34C759'};
+                    color: white;
+                    font-size: 18px;
+                    font-weight: bold;
+                }}
+            """)
         return avatar_label
 
     def clear_history(self):

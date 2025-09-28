@@ -26,6 +26,7 @@ class VoxelinkGUI(QMainWindow):
         # 初始化配置
         self.config = AppConfig()
         self.current_theme = 'custom_dark'
+        self.server_ready = False
 
         # 初始化页面
         self.server_page = ServerPage(self.config)
@@ -38,6 +39,7 @@ class VoxelinkGUI(QMainWindow):
 
         # 连接服务器状态信号
         self.server_page.server_ready_changed.connect(self.update_status_bar)
+        self.server_page.server_ready_changed.connect(self.history_page.update_server_status)
 
     def init_ui(self):
         self.setWindowTitle("🎤 VOXELINK 启动器")
@@ -212,9 +214,13 @@ class VoxelinkGUI(QMainWindow):
 
     def change_page(self, index):
         self.stacked_widget.setCurrentIndex(index)
+        # 当进入历史记录页面且服务器就绪时，自动加载历史记录
+        if index == 2 and self.server_ready:
+            self.history_page.load_history()
 
     def update_status_bar(self, ready):
         """更新状态栏消息"""
+        self.server_ready = ready
         if ready:
             self.statusBar().showMessage("就绪")
         else:
