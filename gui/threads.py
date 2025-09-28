@@ -8,7 +8,6 @@ VOXELINK GUI 线程模块
 import sys
 import os
 from pathlib import Path
-import pyaudio
 from PyQt6.QtCore import QThread, pyqtSignal, QProcess
 
 

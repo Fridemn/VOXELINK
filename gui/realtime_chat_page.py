@@ -8,6 +8,7 @@ import base64
 import tempfile
 import os
 import re
+import wave
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QTextEdit, QGroupBox, QComboBox, QProgressBar, QTextBrowser
 from PyQt6.QtCore import QTimer, QTime, QUrl, Qt
 from PyQt6.QtGui import QFont
@@ -428,6 +429,9 @@ class RealtimeChatPage(QWidget):
             try:
                 audio_data = self.realtime_chat_audio_queue.pop(0)
 
+                # 立即设置音频播放状态为True，确保Live2D能及时检测到
+                self.config.runtime_state.audio_playing = True
+
                 # 保存为临时WAV文件
                 temp_fd, temp_path = tempfile.mkstemp(suffix='.wav')
                 os.close(temp_fd)
@@ -441,34 +445,62 @@ class RealtimeChatPage(QWidget):
                     self.realtime_chat_audio_player = QMediaPlayer()
                     self.realtime_chat_audio_output = QAudioOutput()
                     self.realtime_chat_audio_player.setAudioOutput(self.realtime_chat_audio_output)
+                    # 只连接一次信号
+                    self.realtime_chat_audio_player.mediaStatusChanged.connect(self.on_media_status_changed)
 
+                # 保存当前播放的临时文件路径
+                self.current_temp_path = temp_path
                 self.realtime_chat_audio_player.setSource(QUrl.fromLocalFile(temp_path))
                 self.realtime_chat_audio_player.play()
                 self.realtime_chat_is_playing = True
-                # 更新配置中的音频播放状态
-                self.config.runtime_state.audio_playing = True
-
-                # 播放完成后清理临时文件
-                self.realtime_chat_audio_player.mediaStatusChanged.connect(
-                    lambda status: self.on_audio_finished(temp_path) if status == QMediaPlayer.MediaStatus.EndOfMedia else None
-                )
 
             except Exception as e:
                 self.add_message(f"播放音频失败: {e}", "error")
                 self.realtime_chat_is_playing = False
+        elif not self.realtime_chat_is_playing:
+            # 没有音频要播放且当前也没有在播放，设置音频播放状态为False
+            self.config.runtime_state.audio_playing = False
+
+    def on_media_status_changed(self, status):
+        """处理媒体状态变化"""
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            if hasattr(self, 'current_temp_path'):
+                self.on_audio_finished(self.current_temp_path)
 
     def on_audio_finished(self, temp_path):
         """实时聊天音频播放完成"""
         self.realtime_chat_is_playing = False
-        # 更新配置中的音频播放状态
-        self.config.runtime_state.audio_playing = False
         try:
             os.remove(temp_path)
         except:
             pass
 
-        # 播放下一个音频
-        self.play_next_audio()
+        # 检查是否还有音频要播放
+        if self.realtime_chat_audio_queue:
+            # 还有音频，播放下一个
+            self.play_next_audio()
+        else:
+            # 这是最后一段音频，延迟关闭audio_playing状态
+            # 给口型动画一些额外时间完成
+            self.schedule_audio_stop()
+
+    def schedule_audio_stop(self):
+        """延迟关闭音频播放状态"""
+        # 如果已经有定时器在运行，先停止它
+        if hasattr(self, 'audio_stop_timer') and self.audio_stop_timer.isActive():
+            self.audio_stop_timer.stop()
+            
+        if not hasattr(self, 'audio_stop_timer'):
+            self.audio_stop_timer = QTimer()
+            self.audio_stop_timer.setSingleShot(True)
+            self.audio_stop_timer.timeout.connect(self.stop_audio_playing)
+        
+        # 延迟1秒关闭，给口型动画充足时间
+        self.audio_stop_timer.start(1000)
+
+    def stop_audio_playing(self):
+        """停止音频播放状态"""
+        self.config.runtime_state.audio_playing = False
 
     def add_message(self, message, msg_type, append=False):
         """添加实时聊天消息到记录"""

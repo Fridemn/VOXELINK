@@ -5,6 +5,7 @@ VOXELINK Live2D 模块
 
 import os
 import sys
+import time
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QScrollArea, QFrame, QMainWindow
 from PyQt6.QtGui import QFont, QPixmap, QMouseEvent, QCursor
 from PyQt6.QtCore import QTimerEvent, Qt, QPoint, QPointF, QRect, QTimer
@@ -165,18 +166,23 @@ class Live2DWidget(QOpenGLWidget):
         self.update_mouth_animation()
         self.update()
 
+    def is_audio_playing(self):
+        """检测是否有音频播放（直接从配置中读取）"""
+        try:
+            if hasattr(self.config, 'runtime_state') and hasattr(self.config.runtime_state, 'audio_playing'):
+                result = self.config.runtime_state.audio_playing
+                return result
+        except:
+            pass
+        return False
+
     def update_mouth_animation(self):
         """根据音频播放状态更新口型动画"""
         if not self.model:
             return
 
-        # 检查配置中是否有音频播放状态
-        is_audio_playing = False
-        try:
-            if hasattr(self.config, 'runtime_state') and hasattr(self.config.runtime_state, 'audio_playing'):
-                is_audio_playing = self.config.runtime_state.audio_playing
-        except:
-            pass
+        # 检测是否有音频播放（系统级音频检测）
+        is_audio_playing = self.is_audio_playing()
 
         if is_audio_playing:
             # 音频播放中，执行口型动画
@@ -203,7 +209,7 @@ class Live2DWidget(QOpenGLWidget):
         else:
             # 音频未播放时，关闭嘴巴
             if self.mouth_open_value > 0.01:  # 如果嘴巴开着，逐渐关闭
-                self.mouth_open_value *= 0.7  # 更快地关闭嘴巴
+                self.mouth_open_value *= 0.85  # 更快地关闭嘴巴
                 mouth_params = ["ParamMouthOpenY"]  # 嘴　张开和闭合
                 for param in mouth_params:
                     try:
@@ -222,6 +228,10 @@ class Live2DWidget(QOpenGLWidget):
                         break
                     except:
                         continue
+
+    def close(self):
+        """清理资源"""
+        pass
 
 
 class DesktopPetWindow(QWidget):
@@ -317,11 +327,6 @@ class DesktopPetWindow(QWidget):
         self.transparency_timer.timeout.connect(self.update_mouse_transparency)
         self.transparency_timer.start(10)
         
-        # 调试定时器
-        self.debug_timer = QTimer(self)
-        self.debug_timer.timeout.connect(self.debug_mouse_position)
-        self.debug_timer.start(100)  # 每100ms打印一次调试信息
-        
         # 鼠标按键检测定时器
         self.mouse_button_timer = QTimer(self)
         self.mouse_button_timer.timeout.connect(self.check_mouse_buttons)
@@ -337,30 +342,18 @@ class DesktopPetWindow(QWidget):
                 local_pos = self.mapFromGlobal(global_pos)
                 if self.rect().contains(local_pos):
                     if not self.is_transparent_at_point(local_pos):
-                        # print(f"检测到鼠标左键按下在模型区域: pos={local_pos}")
                         # 模拟长按开始
                         if not self.drag_candidate:
                             self.drag_candidate = True
                             self.long_press_timer.start(self.long_press_threshold_ms)
-                            # print("开始长按检测")
-
-    def debug_mouse_position(self):
-        """调试鼠标位置"""
-        global_mouse_pos = QCursor.pos()
-        local_mouse_pos = self.mapFromGlobal(global_mouse_pos)
-        in_window = self.rect().contains(local_mouse_pos)
-        transparent = self.is_transparent_at_point(local_mouse_pos) if in_window else True
-        # print(f"调试: global={global_mouse_pos}, local={local_mouse_pos}, in_window={in_window}, transparent={transparent}, mouse_transparent={self.mouse_transparent}")
 
     def enterEvent(self, event):
         """鼠标进入窗口事件"""
-        # print("鼠标进入窗口")
         self.update_mouse_transparency()
         super().enterEvent(event)
         
     def leaveEvent(self, event):
         """鼠标离开窗口事件"""
-        # print("鼠标离开窗口")
         self.update_mouse_transparency()
         super().leaveEvent(event)
 
@@ -375,8 +368,6 @@ class DesktopPetWindow(QWidget):
 
         self.setCursor(Qt.CursorShape.ClosedHandCursor)
         self.force_opaque = True
-
-        # print("激活窗口拖拽")
 
         if PYWIN32_AVAILABLE:
             try:
@@ -400,7 +391,6 @@ class DesktopPetWindow(QWidget):
 
     def _reset_drag_state(self):
         """重置拖拽状态"""
-        # print("重置拖拽状态")
         self.long_press_timer.stop()
         self.drag_candidate = False
         self.drag_ready = False
@@ -448,7 +438,6 @@ class DesktopPetWindow(QWidget):
     
     def set_mouse_transparent(self, transparent):
         """设置鼠标穿透状态"""
-        # print(f"设置鼠标穿透: {transparent}")
         self.mouse_transparent = transparent
         if WINDOWS_API_AVAILABLE:
             hwnd = int(self.winId())
@@ -463,7 +452,6 @@ class DesktopPetWindow(QWidget):
             
             SetWindowLong(hwnd, GWL_EXSTYLE, new_style)
             self.mouse_transparent = transparent
-            # print(f"鼠标穿透状态: {'启用' if transparent else '禁用'}")
         else:
             print("Windows API不可用，无法设置鼠标穿透")
 
@@ -502,8 +490,6 @@ class DesktopPetWindow(QWidget):
                     dy = (local_pos.y() - center_y) / (model_height // 2)
                     
                     is_in_model = dx * dx + dy * dy <= 1.0
-                    
-                    # print(f"几何检测: pos={pos}, local={local_pos}, center=({center_x},{center_y}), 椭圆检测={'在模型内' if is_in_model else '在模型外'}")
                     
                     if is_in_model:
                         return False  # 在模型的椭圆边界内，不透明
@@ -650,7 +636,6 @@ class DesktopPetWindow(QWidget):
             cursor_pos = QCursor.pos()
             local_pos = self.mapFromGlobal(cursor_pos)
             is_transparent = self.is_transparent_at_point(local_pos)
-            # print(f"当前鼠标位置 {local_pos} 透明度检测结果: {'透明' if is_transparent else '不透明'}")
         super().keyPressEvent(event)
 
     def closeEvent(self, event):
