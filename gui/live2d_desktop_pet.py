@@ -337,12 +337,12 @@ class DesktopPetWindow(QWidget):
                 local_pos = self.mapFromGlobal(global_pos)
                 if self.rect().contains(local_pos):
                     if not self.is_transparent_at_point(local_pos):
-                        print(f"检测到鼠标左键按下在模型区域: pos={local_pos}")
+                        # print(f"检测到鼠标左键按下在模型区域: pos={local_pos}")
                         # 模拟长按开始
                         if not self.drag_candidate:
                             self.drag_candidate = True
                             self.long_press_timer.start(self.long_press_threshold_ms)
-                            print("开始长按检测")
+                            # print("开始长按检测")
 
     def debug_mouse_position(self):
         """调试鼠标位置"""
@@ -354,13 +354,13 @@ class DesktopPetWindow(QWidget):
 
     def enterEvent(self, event):
         """鼠标进入窗口事件"""
-        print("鼠标进入窗口")
+        # print("鼠标进入窗口")
         self.update_mouse_transparency()
         super().enterEvent(event)
         
     def leaveEvent(self, event):
         """鼠标离开窗口事件"""
-        print("鼠标离开窗口")
+        # print("鼠标离开窗口")
         self.update_mouse_transparency()
         super().leaveEvent(event)
 
@@ -376,7 +376,7 @@ class DesktopPetWindow(QWidget):
         self.setCursor(Qt.CursorShape.ClosedHandCursor)
         self.force_opaque = True
 
-        print("激活窗口拖拽")
+        # print("激活窗口拖拽")
 
         if PYWIN32_AVAILABLE:
             try:
@@ -400,7 +400,7 @@ class DesktopPetWindow(QWidget):
 
     def _reset_drag_state(self):
         """重置拖拽状态"""
-        print("重置拖拽状态")
+        # print("重置拖拽状态")
         self.long_press_timer.stop()
         self.drag_candidate = False
         self.drag_ready = False
@@ -448,7 +448,7 @@ class DesktopPetWindow(QWidget):
     
     def set_mouse_transparent(self, transparent):
         """设置鼠标穿透状态"""
-        print(f"设置鼠标穿透: {transparent}")
+        # print(f"设置鼠标穿透: {transparent}")
         self.mouse_transparent = transparent
         if WINDOWS_API_AVAILABLE:
             hwnd = int(self.winId())
@@ -463,7 +463,7 @@ class DesktopPetWindow(QWidget):
             
             SetWindowLong(hwnd, GWL_EXSTYLE, new_style)
             self.mouse_transparent = transparent
-            print(f"鼠标穿透状态: {'启用' if transparent else '禁用'}")
+            # print(f"鼠标穿透状态: {'启用' if transparent else '禁用'}")
         else:
             print("Windows API不可用，无法设置鼠标穿透")
 
@@ -503,7 +503,7 @@ class DesktopPetWindow(QWidget):
                     
                     is_in_model = dx * dx + dy * dy <= 1.0
                     
-                    print(f"几何检测: pos={pos}, local={local_pos}, center=({center_x},{center_y}), 椭圆检测={'在模型内' if is_in_model else '在模型外'}")
+                    # print(f"几何检测: pos={pos}, local={local_pos}, center=({center_x},{center_y}), 椭圆检测={'在模型内' if is_in_model else '在模型外'}")
                     
                     if is_in_model:
                         return False  # 在模型的椭圆边界内，不透明

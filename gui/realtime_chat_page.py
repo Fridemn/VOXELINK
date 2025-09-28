@@ -472,6 +472,10 @@ class RealtimeChatPage(QWidget):
 
     def add_message(self, message, msg_type, append=False):
         """添加实时聊天消息到记录"""
+        # 过滤不需要显示的系统消息
+        if msg_type == "system" and message in ["Pipeline处理完成", "流式Pipeline处理完成"]:
+            return
+        
         timestamp = QTime.currentTime().toString("hh:mm:ss")
 
         if msg_type == "system":
@@ -479,7 +483,7 @@ class RealtimeChatPage(QWidget):
         elif msg_type == "stt":
             prefix = "🎤 STT"
         elif msg_type == "llm":
-            prefix = "🤖 LLM"
+            prefix = "Your Waifu"
         elif msg_type == "error":
             prefix = "❌ 错误"
         else:
@@ -503,7 +507,7 @@ class RealtimeChatPage(QWidget):
         """添加流式消息并返回消息ID"""
         timestamp = QTime.currentTime().toString("hh:mm:ss")
         color = "#9b59b6"  # 紫色
-        prefix = "🤖 LLM"
+        prefix = "Your Waifu"
 
         formatted_message = f'<span style="color: {color};">[{timestamp}] {prefix}:</span> {text}<br>'
 
@@ -516,7 +520,7 @@ class RealtimeChatPage(QWidget):
         """更新流式消息内容"""
         timestamp = QTime.currentTime().toString("hh:mm:ss")
         color = "#9b59b6"  # 紫色
-        prefix = "🤖 LLM"
+        prefix = "Your Waifu"
 
         formatted_message = f'<span style="color: {color};">[{timestamp}] {prefix}:</span> {text}<br>'
 
@@ -536,13 +540,13 @@ class RealtimeChatPage(QWidget):
         last_llm_index = -1
         
         for i in range(len(lines) - 1, -1, -1):
-            if '🤖 LLM:' in lines[i]:
+            if 'Your Waifu:' in lines[i]:
                 last_llm_index = i
                 break
         
         if last_llm_index >= 0:
             line = lines[last_llm_index]
-            prefix_end = line.find('🤖 LLM:') + len('🤖 LLM:')
+            prefix_end = line.find('Your Waifu:') + len('Your Waifu:')
             prefix = line[:prefix_end]
             
             lines[last_llm_index] = f'{prefix} {new_text}'
