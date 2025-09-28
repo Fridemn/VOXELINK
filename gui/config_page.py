@@ -4,6 +4,7 @@ VOXELINK GUI 配置文件管理页面模块
 """
 
 import json
+import ast
 from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QGroupBox, QScrollArea, QSpinBox, QDoubleSpinBox
 from PyQt6.QtGui import QFont
@@ -88,7 +89,20 @@ class ConfigPage(QWidget):
         h_layout = QHBoxLayout()
         h_layout.addWidget(QLabel(f"{label_text}:"))
 
-        if isinstance(value, bool):
+        if isinstance(value, str) and self._is_array_string(value):
+            # 解析数组格式的字符串为实际数组
+            try:
+                parsed_array = ast.literal_eval(value)
+                if isinstance(parsed_array, list):
+                    # 将数组转换为逗号分隔的字符串用于编辑
+                    array_text = ', '.join([f'"{item}"' if isinstance(item, str) else str(item) for item in parsed_array])
+                    widget = QLineEdit(f"[{array_text}]")
+                    widget.setPlaceholderText("数组格式: ['item1', 'item2', ...]")
+                else:
+                    widget = QLineEdit(str(value))
+            except:
+                widget = QLineEdit(str(value))
+        elif isinstance(value, bool):
             widget = QCheckBox()
             widget.setChecked(value)
         elif isinstance(value, int):
@@ -107,6 +121,13 @@ class ConfigPage(QWidget):
         h_layout.addWidget(widget)
         layout.addLayout(h_layout)
         self.config_widgets[full_key] = widget
+
+    def _is_array_string(self, value):
+        """检查字符串是否是数组格式"""
+        if not isinstance(value, str):
+            return False
+        value = value.strip()
+        return (value.startswith('[') and value.endswith(']')) or (value.startswith("['") and value.endswith("']"))
 
     def save_config(self):
         """保存配置"""
@@ -141,19 +162,24 @@ class ConfigPage(QWidget):
                             result[key] = widget.value()
                         elif isinstance(widget, QLineEdit):
                             text = widget.text()
-                            # 尝试转换类型
-                            if isinstance(value, int):
+                            # 检查是否是数组格式的输入
+                            if text.strip().startswith('[') and text.strip().endswith(']'):
+                                # 尝试解析为数组并保存为真正的数组
                                 try:
-                                    result[key] = int(text)
-                                except:
-                                    result[key] = text
-                            elif isinstance(value, float):
-                                try:
-                                    result[key] = float(text)
+                                    # 移除方括号，分割并清理
+                                    array_content = text.strip()[1:-1].strip()
+                                    if array_content:
+                                        # 分割并清理每个元素
+                                        items = [item.strip().strip('"\'') for item in array_content.split(',')]
+                                        # 保存为真正的数组
+                                        result[key] = items
+                                    else:
+                                        result[key] = []
                                 except:
                                     result[key] = text
                             else:
-                                result[key] = text
+                                # 智能类型转换
+                                result[key] = self._smart_type_conversion(text, value)
                         else:
                             result[key] = value
                     else:
@@ -161,3 +187,32 @@ class ConfigPage(QWidget):
             return result
         else:
             return original
+
+    def _smart_type_conversion(self, text, original_value):
+        """智能类型转换"""
+        # 如果原值是数组格式的字符串，尝试解析为真正的数组
+        if isinstance(original_value, str) and self._is_array_string(original_value):
+            try:
+                # 尝试使用 ast.literal_eval 安全解析
+                parsed = ast.literal_eval(text)
+                if isinstance(parsed, list):
+                    return parsed
+                else:
+                    return text
+            except:
+                # 解析失败，保持为字符串
+                return text
+        
+        # 其他类型转换
+        if isinstance(original_value, int):
+            try:
+                return int(text)
+            except:
+                return text
+        elif isinstance(original_value, float):
+            try:
+                return float(text)
+            except:
+                return text
+        else:
+            return text
