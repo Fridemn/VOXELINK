@@ -105,6 +105,11 @@ class ServerPage(QWidget):
             self.output_text.append("❌ 端口必须是数字")
             return
 
+        # 更新配置中的端口和WebSocket URL
+        self.config['server_port'] = port_int
+        self.config['gui']['server']['realtime_chat_ws_url'] = f"ws://localhost:{port}/ws/realtime_chat"
+        self.config['gui']['server']['stt_ws_url'] = f"ws://localhost:{port}/stt/ws"
+
         self.output_text.clear()
 
         self.server_thread = ServerThread(host, port_int, enable_stt, enable_tts)

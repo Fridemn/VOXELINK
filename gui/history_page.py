@@ -19,7 +19,6 @@ class HistoryPage(QWidget):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.backend_url = f"http://localhost:{self.config.get('server_port', 8080)}"
         self.history_data = []
         self.server_ready = False
 
@@ -99,7 +98,8 @@ class HistoryPage(QWidget):
         self.loading_label.show()
 
         # 在后台线程中加载
-        self.history_thread = HistoryLoaderThread(self.backend_url)
+        backend_url = f"http://localhost:{self.config.get('server_port', 8080)}"
+        self.history_thread = HistoryLoaderThread(backend_url)
         self.history_thread.finished.connect(self.on_history_loaded)
         self.history_thread.error.connect(self.on_history_error)
         self.history_thread.start()
@@ -267,7 +267,8 @@ class HistoryPage(QWidget):
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                response = requests.delete(f"{self.backend_url}/llm/history", timeout=10)
+                backend_url = f"http://localhost:{self.config.get('server_port', 8080)}"
+                response = requests.delete(f"{backend_url}/llm/history", timeout=10)
                 if response.status_code == 200:
                     QMessageBox.information(self, "成功", "历史记录已清除")
                     self.history_data = []
