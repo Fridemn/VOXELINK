@@ -9,7 +9,7 @@ import tempfile
 import os
 import re
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QPushButton, QTextEdit, QGroupBox, QComboBox, QProgressBar, QTextBrowser
-from PyQt6.QtCore import QTimer, QTime, QUrl
+from PyQt6.QtCore import QTimer, QTime, QUrl, Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWebSockets import QWebSocket
@@ -57,25 +57,23 @@ class RealtimeChatPage(QWidget):
         status_group = QGroupBox("连接状态")
         status_layout = QVBoxLayout(status_group)
 
-        self.realtime_chat_status_label = QLabel("⚫ 未连接")
-        self.realtime_chat_status_label.setObjectName("status_disconnected")
-        status_layout.addWidget(self.realtime_chat_status_label)
-
         connect_layout = QHBoxLayout()
         self.realtime_chat_connect_btn = QPushButton("连接")
         self.realtime_chat_connect_btn.setObjectName("connect_button")
-        self.realtime_chat_connect_btn.setFixedWidth(80)
         self.realtime_chat_connect_btn.clicked.connect(self.connect)
         connect_layout.addWidget(self.realtime_chat_connect_btn)
 
         self.realtime_chat_disconnect_btn = QPushButton("断开")
         self.realtime_chat_disconnect_btn.setObjectName("disconnect_button")
-        self.realtime_chat_disconnect_btn.setFixedWidth(80)
         self.realtime_chat_disconnect_btn.clicked.connect(self.disconnect)
         self.realtime_chat_disconnect_btn.setEnabled(False)
         connect_layout.addWidget(self.realtime_chat_disconnect_btn)
 
         status_layout.addLayout(connect_layout)
+
+        self.realtime_chat_status_label = QLabel("⚫ 未连接")
+        self.realtime_chat_status_label.setObjectName("status_disconnected")
+        status_layout.addWidget(self.realtime_chat_status_label)
         main_control_layout.addWidget(status_group)
 
         # 实时控制
@@ -85,12 +83,10 @@ class RealtimeChatPage(QWidget):
         # 录音控制
         record_layout = QHBoxLayout()
         self.realtime_chat_record_btn = QPushButton("开始录音")
-        self.realtime_chat_record_btn.setFixedWidth(100)
         self.realtime_chat_record_btn.clicked.connect(self.start_recording)
         record_layout.addWidget(self.realtime_chat_record_btn)
 
         self.realtime_chat_stop_record_btn = QPushButton("停止录音")
-        self.realtime_chat_stop_record_btn.setFixedWidth(100)
         self.realtime_chat_stop_record_btn.clicked.connect(self.stop_recording)
         self.realtime_chat_stop_record_btn.setEnabled(False)
         self.realtime_chat_stop_record_btn.setStyleSheet("QPushButton { background-color: #e74c3c; color: white; }")
@@ -100,16 +96,10 @@ class RealtimeChatPage(QWidget):
 
         # 状态指示器
         status_indicator_layout = QHBoxLayout()
-        self.realtime_chat_voice_indicator = QLabel("●")
-        self.realtime_chat_voice_indicator.setStyleSheet("color: #bdc3c7; font-size: 20px;")
-        status_indicator_layout.addWidget(self.realtime_chat_voice_indicator)
-
-        self.realtime_chat_voice_status = QLabel("未检测到语音")
-        status_indicator_layout.addWidget(self.realtime_chat_voice_status)
 
         self.realtime_chat_processing_status = QLabel("等待语音输入")
         self.realtime_chat_processing_status.setStyleSheet("color: blue; font-weight: bold;")
-        status_indicator_layout.addWidget(self.realtime_chat_processing_status)
+        status_indicator_layout.addWidget(self.realtime_chat_processing_status, alignment=Qt.AlignmentFlag.AlignLeft)
 
         control_layout.addLayout(status_indicator_layout)
         main_control_layout.addWidget(control_group)
@@ -479,12 +469,6 @@ class RealtimeChatPage(QWidget):
 
         # 播放下一个音频
         self.play_next_audio()
-
-        # 如果音频队列为空，说明整个TTS响应播放完成，重新启用录音
-        if not self.realtime_chat_audio_queue:
-            # 恢复UI状态
-            self.realtime_chat_voice_indicator.setStyleSheet("color: #bdc3c7; font-size: 20px;")
-            self.realtime_chat_voice_status.setText("未检测到语音")
 
     def add_message(self, message, msg_type, append=False):
         """添加实时聊天消息到记录"""
